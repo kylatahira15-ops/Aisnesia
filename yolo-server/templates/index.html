@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>YOLO Camera Monitor — AIS Port System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+:root{
+  --bg:        #F4F7FB;
+  --card:      #FFFFFF;
+  --border:    #E3E9F2;
+  --text:      #1A2640;
+  --muted:     #7C8BA3;
+
+  --blue:      #2563EB;
+  --blue-bg:   #EAF1FF;
+  --green:     #16A34A;
+  --green-bg:  #E9FBF0;
+  --red:       #E11D48;
+  --red-bg:    #FFEAEF;
+  --amber:     #D97706;
+  --amber-bg:  #FFF6E0;
+  --purple:    #7C3AED;
+  --purple-bg: #F3EBFF;
+  --cyan:      #0891B2;
+  --cyan-bg:   #E3FAFD;
+
+  --shadow: 0 1px 3px rgba(20,30,60,0.06), 0 1px 2px rgba(20,30,60,0.04);
+  --shadow-md: 0 4px 16px rgba(20,30,60,0.08);
+}
+
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+}
+
+/* ── TOPBAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.85rem 1.5rem;
+  background:var(--card);
+  border-bottom:1px solid var(--border);
+  flex-wrap:wrap;gap:.75rem;
+}
+.tb-left{display:flex;align-items:center;gap:.75rem;}
+.tb-icon{
+  width:38px;height:38px;border-radius:10px;
+  background:linear-gradient(135deg,var(--blue),var(--cyan));
+  display:grid;place-items:center;font-size:1.2rem;color:#fff;
+  box-shadow:0 4px 12px rgba(37,99,235,0.25);
+}
+.tb-titles{display:flex;flex-direction:column;}
+.tb-title{font-size:1rem;font-weight:800;color:var(--text);line-height:1.2;}
+.tb-sub{font-size:.72rem;color:var(--muted);font-weight:500;}
+
+.tb-right{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}
+.pill{
+  display:flex;align-items:center;gap:.4rem;
+  padding:.4rem .8rem;border-radius:999px;
+  font-size:.78rem;font-weight:600;
+  border:1px solid var(--border);
+  background:#fff;color:var(--text);
+}
+.pill-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+.pill-dot.off{background:var(--red);}
+.pill.live{background:var(--green-bg);border-color:rgba(22,163,74,0.25);color:var(--green);}
+.pill.live .pill-dot{animation:blink 1.6s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+.tb-clock{font-size:.82rem;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;}
+
+/* ── ALERT BANNER ── */
+.alert-banner{
+  display:none;align-items:center;gap:.6rem;
+  background:var(--red-bg);border-bottom:1px solid rgba(225,29,72,0.2);
+  color:var(--red);padding:.7rem 1.5rem;font-size:.85rem;font-weight:600;
+}
+.alert-banner.show{display:flex;}
+.alert-dismiss{
+  margin-left:auto;background:#fff;border:1px solid rgba(225,29,72,0.3);
+  color:var(--red);font-size:.72rem;font-weight:700;padding:.25rem .7rem;
+  border-radius:8px;cursor:pointer;
+}
+
+/* ── WORKSPACE ── */
+.workspace{
+  display:grid;grid-template-columns:1fr 340px;gap:1rem;
+  padding:1rem 1.5rem 2rem;
+  max-width:1600px;margin:0 auto;
+}
+
+/* ── FEED CARD ── */
+.feed-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:18px;overflow:hidden;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;
+}
+.feed-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.85rem 1.2rem;border-bottom:1px solid var(--border);
+  flex-wrap:wrap;gap:.5rem;
+}
+.feed-label{font-size:.85rem;font-weight:700;display:flex;align-items:center;gap:.5rem;}
+.feed-label .src{color:var(--muted);font-weight:500;font-size:.78rem;}
+.feed-badges{display:flex;gap:.4rem;flex-wrap:wrap;}
+.badge{
+  font-size:.68rem;font-weight:700;padding:.25rem .6rem;border-radius:7px;
+}
+.badge-blue{background:var(--blue-bg);color:var(--blue);}
+.badge-green{background:var(--green-bg);color:var(--green);}
+.badge-red{background:var(--red-bg);color:var(--red);}
+.badge-amber{background:var(--amber-bg);color:var(--amber);}
+.badge-purple{background:var(--purple-bg);color:var(--purple);}
+
+.video-wrap{
+  position:relative;background:#0B1220;
+  aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.video-wrap img#yolo-stream{width:100%;height:100%;object-fit:contain;display:block;}
+
+.offline-placeholder{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:.9rem;
+  color:#7C8BA3;text-align:center;
+}
+.offline-icon{font-size:2.6rem;opacity:.5;}
+.offline-text{font-size:.85rem;font-weight:700;letter-spacing:.03em;color:#C7D2E3;}
+.offline-sub{font-size:.74rem;color:#7C8BA3;}
+.btn-retry{
+  margin-top:.4rem;background:var(--blue);color:#fff;border:none;
+  padding:.55rem 1.2rem;border-radius:10px;font-weight:700;font-size:.78rem;
+  cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,0.35);
+}
+.btn-retry:hover{filter:brightness(1.08);}
+
+.det-pulse{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:90px;height:90px;border:2px dashed rgba(124,139,163,0.35);
+  border-radius:50%;animation:spin 9s linear infinite;
+}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg);}}
+
+.feed-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.7rem 1.2rem;border-top:1px solid var(--border);
+  flex-wrap:wrap;gap:.6rem;
+}
+.ff-stats{display:flex;gap:1.1rem;flex-wrap:wrap;}
+.ff-stat{font-size:.72rem;color:var(--muted);}
+.ff-stat b{color:var(--text);font-weight:700;}
+.ff-controls{display:flex;gap:.5rem;}
+.ctrl-btn{
+  font-size:.74rem;font-weight:700;padding:.45rem .9rem;border-radius:9px;
+  border:1px solid;cursor:pointer;background:#fff;transition:all .15s;
+}
+.ctrl-btn.blue{color:var(--blue);border-color:rgba(37,99,235,0.3);}
+.ctrl-btn.blue:hover{background:var(--blue-bg);}
+.ctrl-btn.amber{color:var(--amber);border-color:rgba(217,119,6,0.3);}
+.ctrl-btn.amber:hover{background:var(--amber-bg);}
+.ctrl-btn.red{color:var(--red);border-color:rgba(225,29,72,0.3);}
+.ctrl-btn.red:hover{background:var(--red-bg);}
+
+/* ── RIGHT PANEL ── */
+.right-panel{display:flex;flex-direction:column;gap:1rem;}
+.panel-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:18px;padding:1.1rem 1.2rem;box-shadow:var(--shadow);
+}
+.panel-title{
+  font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:.85rem;display:flex;align-items:center;gap:.4rem;
+}
+.panel-title::before{content:'';width:4px;height:14px;border-radius:3px;background:var(--blue);}
+
+/* detection status */
+.detect-box{
+  display:flex;align-items:center;gap:.8rem;
+  background:var(--green-bg);border:1px solid rgba(22,163,74,0.2);
+  border-radius:14px;padding:.85rem 1rem;margin-bottom:.9rem;
+  transition:background .2s,border-color .2s;
+}
+.detect-box.alert{
+  background:var(--red-bg);border-color:rgba(225,29,72,0.3);
+  animation:pulse-alert 1.1s ease-in-out infinite;
+}
+@keyframes pulse-alert{0%,100%{box-shadow:0 0 0 0 rgba(225,29,72,0.15);}50%{box-shadow:0 0 0 8px rgba(225,29,72,0);}}
+.detect-icon{font-size:1.7rem;}
+.detect-label{font-size:.86rem;font-weight:800;color:var(--green);}
+.detect-box.alert .detect-label{color:var(--red);}
+.detect-sub{font-size:.72rem;color:var(--muted);margin-top:.1rem;}
+
+.conf-row{margin-bottom:.7rem;}
+.conf-row:last-child{margin-bottom:0;}
+.conf-head{display:flex;justify-content:space-between;font-size:.74rem;color:var(--muted);font-weight:600;margin-bottom:.35rem;}
+.conf-head span:last-child{color:var(--blue);font-weight:800;}
+.conf-bar{height:7px;border-radius:5px;background:#EEF2F8;overflow:hidden;}
+.conf-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,#2563EB,#0891B2);transition:width .4s ease;}
+.conf-fill.stability{background:linear-gradient(90deg,#7C3AED,#D946EF);}
+
+/* stats grid */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;}
+.stat-tile{
+  border-radius:13px;padding:.8rem .9rem;
+  border:1px solid var(--border);
+}
+.stat-tile.blue{background:var(--blue-bg);border-color:rgba(37,99,235,0.18);}
+.stat-tile.amber{background:var(--amber-bg);border-color:rgba(217,119,6,0.18);}
+.stat-tile.cyan{background:var(--cyan-bg);border-color:rgba(8,145,178,0.18);}
+.stat-tile.red{background:var(--red-bg);border-color:rgba(225,29,72,0.18);}
+.stat-val{font-size:1.5rem;font-weight:800;line-height:1;margin-bottom:.25rem;}
+.stat-tile.blue .stat-val{color:var(--blue);}
+.stat-tile.amber .stat-val{color:var(--amber);}
+.stat-tile.cyan .stat-val{color:var(--cyan);}
+.stat-tile.red .stat-val{color:var(--red);}
+.stat-lbl{font-size:.66rem;font-weight:700;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;}
+
+/* control buttons grid */
+.ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-bottom:1rem;}
+.ctrl-btn-lg{
+  display:flex;align-items:center;justify-content:center;gap:.4rem;
+  font-size:.76rem;font-weight:700;padding:.65rem .5rem;border-radius:11px;
+  border:1px solid;cursor:pointer;transition:all .15s;background:#fff;
+}
+.ctrl-btn-lg.green{color:var(--green);border-color:rgba(22,163,74,0.3);}
+.ctrl-btn-lg.green:hover{background:var(--green-bg);}
+.ctrl-btn-lg.red{color:var(--red);border-color:rgba(225,29,72,0.3);}
+.ctrl-btn-lg.red:hover{background:var(--red-bg);}
+.ctrl-btn-lg.amber{color:var(--amber);border-color:rgba(217,119,6,0.3);}
+.ctrl-btn-lg.amber:hover{background:var(--amber-bg);}
+.ctrl-btn-lg.blue{color:var(--blue);border-color:rgba(37,99,235,0.3);}
+.ctrl-btn-lg.blue:hover{background:var(--blue-bg);}
+
+.slider-block{margin-top:.6rem;}
+.slider-label{display:flex;justify-content:space-between;font-size:.74rem;font-weight:600;color:var(--muted);margin-bottom:.4rem;}
+.slider-label span:last-child{color:var(--blue);font-weight:800;}
+input[type=range]{width:100%;accent-color:var(--blue);height:4px;cursor:pointer;}
+
+/* log */
+.log-box{
+  background:#0B1220;border-radius:13px;padding:.7rem .8rem;
+  height:190px;overflow-y:auto;font-family:'SFMono-Regular',Consolas,monospace;
+  font-size:.68rem;line-height:1.8;
+}
+.log-box::-webkit-scrollbar{width:5px;}
+.log-box::-webkit-scrollbar-thumb{background:#2A3A55;border-radius:3px;}
+.log-line{display:flex;gap:.5rem;}
+.log-time{color:#5B6E8C;flex-shrink:0;}
+.log-msg.info{color:#C7D2E3;}
+.log-msg.detect{color:#34D399;}
+.log-msg.alert{color:#FB7185;}
+.log-msg.warn{color:#FBBF24;}
+.log-msg.system{color:#60A5FA;}
+
+/* nav links */
+.nav-links{display:flex;gap:.5rem;flex-wrap:wrap;}
+.nav-link{
+  font-size:.74rem;font-weight:700;text-decoration:none;
+  padding:.45rem .8rem;border-radius:9px;border:1px solid;
+  display:flex;align-items:center;gap:.35rem;
+}
+.nav-link.blue{color:var(--blue);background:var(--blue-bg);border-color:rgba(37,99,235,0.2);}
+.nav-link.purple{color:var(--purple);background:var(--purple-bg);border-color:rgba(124,58,237,0.2);}
+
+/* bottombar */
+.bottombar{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;
+  padding:.7rem 1.5rem;background:var(--card);border-top:1px solid var(--border);
+  font-size:.72rem;color:var(--muted);
+}
+.bottombar a{color:var(--blue);text-decoration:none;font-weight:600;}
+.bottombar a:hover{text-decoration:underline;}
+.bottombar strong{color:var(--text);}
+
+@media (max-width:980px){
+  .workspace{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<div class="topbar">
+  <div class="tb-left">
+    <a href="http://localhost:4000/portal-tugas-akhir.html" style="text-decoration:none;display:flex;align-items:center;gap:.75rem;">
+      <div class="tb-icon">🎥</div>
+      <div class="tb-titles">
+        <span class="tb-title">YOLO Camera Monitor</span>
+        <span class="tb-sub">Vessel Detection · AIS Port System</span>
+      </div>
+    </a>
+  </div>
+  <div class="tb-right">
+    <a href="http://localhost:4000/portal-tugas-akhir.html" style="font-size:.74rem;font-weight:700;color:var(--blue);background:var(--blue-bg);padding:.4rem .8rem;border-radius:9px;text-decoration:none;">🏠 Portal</a>
+    <a href="http://localhost:4000" style="font-size:.74rem;font-weight:700;color:var(--cyan);background:var(--cyan-bg);padding:.4rem .8rem;border-radius:9px;text-decoration:none;">📡 AIS</a>
+    <span id="auth-user-pill" class="pill" style="display:none;">
+      <span style="font-size:.9rem;">👤</span> <span id="auth-username">—</span>
+    </span>
+    <button onclick="doLogoutFromYolo()" style="font-size:.72rem;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(225,29,72,0.2);padding:.4rem .8rem;border-radius:9px;cursor:pointer;">⏏ Keluar</button>
+    <div class="pill live" id="status-pill">
+      <span class="pill-dot" id="status-dot"></span>
+      <span id="status-text">STREAM ACTIVE</span>
+    </div>
+    <div class="tb-clock" id="clock">--:--:--</div>
+  </div>
+</div>
+
+<!-- ── ALERT BANNER ── -->
+<div class="alert-banner" id="alert-banner">
+  ⚠️ Kapal terdeteksi di zona sandar — periksa dermaga segera
+  <button class="alert-dismiss" onclick="dismissAlert()">TUTUP</button>
+</div>
+
+<!-- ── WORKSPACE ── -->
+<div class="workspace">
+
+  <!-- FEED -->
+  <div class="feed-card">
+    <div class="feed-header">
+      <div class="feed-label">📹 Live Feed <span class="src">— OpenCV / YOLO · localhost:5000/video_feed</span></div>
+      <div class="feed-badges">
+        <span class="badge badge-blue" id="badge-model">YOLOv8</span>
+        <span class="badge badge-amber" id="badge-fps">-- FPS</span>
+        <span class="badge badge-purple">MJPEG</span>
+        <span class="badge badge-green" id="badge-detect">DETECTING</span>
+      </div>
+    </div>
+
+    <div class="video-wrap" id="video-wrap">
+      <div class="det-pulse" id="det-pulse"></div>
+      <img id="yolo-stream" src="http://localhost:5000/video_feed" alt="YOLO Stream"
+           style="display:none;" onload="onStreamLoad()" onerror="onStreamError()"/>
+      <div class="offline-placeholder" id="offline-placeholder">
+        <div class="offline-icon">📷</div>
+        <div class="offline-text">STREAM TIDAK TERHUBUNG</div>
+        <div class="offline-sub">Pastikan server berjalan di localhost:5000</div>
+        <button class="btn-retry" onclick="retryStream()">↺ Coba Hubungkan</button>
+      </div>
+    </div>
+
+    <div class="feed-footer">
+      <div class="ff-stats">
+        <div class="ff-stat">Resolusi: <b id="ff-res">--</b></div>
+        <div class="ff-stat">Model: <b id="ff-model">YOLOv8n</b></div>
+        <div class="ff-stat">Threshold: <b id="ff-thresh">0.50</b></div>
+        <div class="ff-stat">Frame: <b id="ff-frame">0</b></div>
+      </div>
+      <div class="ff-controls">
+        <button class="ctrl-btn blue" onclick="retryStream()">↺ Reconnect</button>
+        <button class="ctrl-btn amber" onclick="captureFrame()">📸 Capture</button>
+        <button class="ctrl-btn red" onclick="stopStream()">⏹ Stop</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+
+    <!-- Status Deteksi -->
+    <div class="panel-card">
+      <div class="panel-title">Status Deteksi</div>
+      <div class="detect-box" id="detect-status">
+        <div class="detect-icon" id="ds-icon">🔍</div>
+        <div>
+          <div class="detect-label" id="ds-label">MEMINDAI...</div>
+          <div class="detect-sub" id="ds-sub">Menunggu objek kapal</div>
+        </div>
+      </div>
+      <div class="conf-row">
+        <div class="conf-head"><span>Kepercayaan Deteksi</span><span id="conf-val">—</span></div>
+        <div class="conf-bar"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
+      </div>
+      <div class="conf-row">
+        <div class="conf-head"><span>Kestabilan Model</span><span id="stab-val">—</span></div>
+        <div class="conf-bar"><div class="conf-fill stability" id="stab-fill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="panel-card">
+      <div class="panel-title">Statistik Sesi</div>
+      <div class="stats-grid">
+        <div class="stat-tile blue"><div class="stat-val" id="s-detected">0</div><div class="stat-lbl">Total Deteksi</div></div>
+        <div class="stat-tile red"><div class="stat-val" id="s-alerts">0</div><div class="stat-lbl">Alert Kapal</div></div>
+        <div class="stat-tile cyan"><div class="stat-val" id="s-fps">--</div><div class="stat-lbl">FPS</div></div>
+        <div class="stat-tile amber"><div class="stat-val" id="s-uptime">00:00</div><div class="stat-lbl">Uptime</div></div>
+      </div>
+    </div>
+
+    <!-- Kontrol -->
+    <div class="panel-card">
+      <div class="panel-title">Kontrol</div>
+      <div class="ctrl-grid">
+        <button class="ctrl-btn-lg green" onclick="retryStream()">▶ Start</button>
+        <button class="ctrl-btn-lg red" onclick="stopStream()">■ Stop</button>
+        <button class="ctrl-btn-lg amber" onclick="captureFrame()">📸 Capture</button>
+        <button class="ctrl-btn-lg blue" onclick="clearLog()">🗑 Clear Log</button>
+      </div>
+      <div class="slider-block">
+        <div class="slider-label"><span>Confidence Threshold</span><span id="thresh-label">0.50</span></div>
+        <input type="range" min="10" max="95" value="50" oninput="updateThreshold(this.value)"/>
+      </div>
+      <div class="slider-block">
+        <div class="slider-label"><span>Geofence Sensitivity</span><span id="geo-label">MED</span></div>
+        <input type="range" min="1" max="3" value="2" oninput="updateGeo(this.value)"/>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="panel-card">
+      <div class="panel-title">Event Log</div>
+      <div class="log-box" id="log-area">
+        <div class="log-line"><span class="log-time" id="log-boot-time">--:--:--</span><span class="log-msg system">System initialized. Menghubungkan ke localhost:5000...</span></div>
+      </div>
+    </div>
+
+    <!-- Info user -->
+    <div class="panel-card">
+      <div class="panel-title">Sesi Aktif</div>
+      <div style="font-size:.8rem;color:var(--muted);line-height:1.7;">
+        Anda login sebagai <strong style="color:var(--text);" id="session-username">Operator</strong>.<br/>
+        Sesi ini terhubung dengan AIS App di <strong style="color:var(--blue);">localhost:4000</strong>.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- BOTTOMBAR -->
+<div class="bottombar">
+  <div>PROTOTIPE SISTEM MONITORING KAPAL SANDAR · <strong>Balqis Kyla Tahira</strong></div>
+  <div>
+    Stream: <a href="http://localhost:5000/video_feed" target="_blank">localhost:5000/video_feed</a>
+    &nbsp;·&nbsp; AIS: <a href="http://localhost:4000" target="_blank">localhost:4000</a>
+  </div>
+  <div id="bb-time">—</div>
+</div>
+
+<script>
+/* ═══════════ AUTH GUARD ═══════════
+   Cek sesi login dari portal (cookie ais_token / localStorage).
+   Kalau belum login → redirect ke halaman login portal.
+*/
+(function authGuard(){
+  const token = localStorage.getItem('ais_token');
+
+  function redirectToLogin(){
+    window.location.href = 'http://localhost:4000/portal-tugas-akhir.html';
+  }
+
+  if(!token){
+    // Tidak ada token sama sekali → langsung redirect
+    redirectToLogin();
+    return;
+  }
+
+  // Verifikasi token ke server AIS
+  fetch('http://localhost:4000/api/auth/me', {
+    headers: { 'Authorization': 'Bearer ' + token },
+    credentials: 'include'
+  })
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(d => {
+    const pill = document.getElementById('auth-user-pill');
+    const uname = document.getElementById('auth-username');
+    const sessionName = document.getElementById('session-username');
+    const name = d.username || 'Operator';
+    if(pill && uname){ uname.textContent = name; pill.style.display = 'flex'; }
+    if(sessionName){ sessionName.textContent = name; }
+  })
+  .catch(() => {
+    localStorage.removeItem('ais_token');
+    redirectToLogin();
+  });
+})();
+
+function doLogoutFromYolo(){
+  localStorage.removeItem('ais_token');
+  window.location.href = 'http://localhost:4000/portal-tugas-akhir.html';
+}
+</script>
+
+<script>
+let streamActive=false, sessionStart=null, frameCount=0, detectedCount=0, alertCount=0;
+let simInterval=null, uptimeInterval=null;
+
+function updateClock(){
+  const now=new Date();
+  const t=now.toTimeString().split(' ')[0];
+  document.getElementById('clock').textContent=t;
+  document.getElementById('bb-time').textContent=now.toLocaleDateString('id-ID',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})+' · '+t;
+}
+updateClock(); setInterval(updateClock,1000);
+document.getElementById('log-boot-time').textContent=new Date().toTimeString().split(' ')[0];
+
+function addLog(msg,type='info'){
+  const la=document.getElementById('log-area');
+  const t=new Date().toTimeString().split(' ')[0];
+  const line=document.createElement('div');
+  line.className='log-line';
+  line.innerHTML=`<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+  la.appendChild(line); la.scrollTop=la.scrollHeight;
+}
+
+function onStreamLoad(){
+  document.getElementById('yolo-stream').style.display='block';
+  document.getElementById('offline-placeholder').style.display='none';
+  document.getElementById('det-pulse').style.display='none';
+  streamActive=true; sessionStart=Date.now();
+
+  document.getElementById('status-pill').className='pill live';
+  document.getElementById('status-text').textContent='STREAM ACTIVE';
+  document.getElementById('badge-detect').textContent='DETECTING';
+  document.getElementById('badge-detect').className='badge badge-green';
+  document.getElementById('ff-res').textContent='640×480';
+
+  addLog('Stream terhubung → localhost:5000/video_feed','system');
+  addLog('Model YOLO aktif. Memindai area sandar...','detect');
+  startUptimeCounter(); startSimulation();
+}
+
+function onStreamError(){
+  document.getElementById('yolo-stream').style.display='none';
+  document.getElementById('offline-placeholder').style.display='flex';
+  document.getElementById('det-pulse').style.display='block';
+  streamActive=false;
+
+  document.getElementById('status-pill').className='pill';
+  document.getElementById('status-pill').style.background='var(--red-bg)';
+  document.getElementById('status-pill').style.color='var(--red)';
+  document.getElementById('status-text').textContent='OFFLINE';
+  document.getElementById('badge-detect').textContent='OFFLINE';
+  document.getElementById('badge-detect').className='badge badge-red';
+
+  clearInterval(simInterval); clearInterval(uptimeInterval);
+  addLog('Koneksi stream gagal. Server mungkin belum berjalan.','alert');
+}
+
+function retryStream(){
+  addLog('Mencoba menghubungkan ulang...','system');
+  const img=document.getElementById('yolo-stream');
+  img.src=`http://localhost:5000/video_feed?t=${Date.now()}`;
+}
+
+function stopStream(){
+  const img=document.getElementById('yolo-stream');
+  img.src=''; img.style.display='none';
+  document.getElementById('offline-placeholder').style.display='flex';
+  document.getElementById('det-pulse').style.display='block';
+  streamActive=false;
+
+  document.getElementById('status-pill').className='pill';
+  document.getElementById('status-pill').style.background='var(--red-bg)';
+  document.getElementById('status-pill').style.color='var(--red)';
+  document.getElementById('status-text').textContent='STOPPED';
+  document.getElementById('badge-detect').textContent='STOPPED';
+  document.getElementById('badge-detect').className='badge badge-red';
+
+  clearInterval(simInterval); clearInterval(uptimeInterval);
+  addLog('Stream dihentikan oleh operator.','warn');
+}
+
+function startUptimeCounter(){
+  clearInterval(uptimeInterval);
+  uptimeInterval=setInterval(()=>{
+    if(!sessionStart)return;
+    const s=Math.floor((Date.now()-sessionStart)/1000);
+    const m=Math.floor(s/60).toString().padStart(2,'0');
+    const ss=(s%60).toString().padStart(2,'0');
+    document.getElementById('s-uptime').textContent=`${m}:${ss}`;
+  },1000);
+}
+
+function startSimulation(){
+  clearInterval(simInterval);
+  let tick=0;
+  simInterval=setInterval(()=>{
+    tick++; frameCount++;
+    document.getElementById('ff-frame').textContent=frameCount;
+    const fps=(22+Math.random()*6).toFixed(1);
+    document.getElementById('s-fps').textContent=fps;
+    document.getElementById('badge-fps').textContent=fps+' FPS';
+
+    if(tick%12===0){
+      const conf=(0.72+Math.random()*0.24).toFixed(2);
+      const stab=(0.80+Math.random()*0.18).toFixed(2);
+      detectedCount++;
+      document.getElementById('s-detected').textContent=detectedCount;
+      document.getElementById('conf-val').textContent=(conf*100).toFixed(0)+'%';
+      document.getElementById('stab-val').textContent=(stab*100).toFixed(0)+'%';
+      document.getElementById('conf-fill').style.width=(conf*100)+'%';
+      document.getElementById('stab-fill').style.width=(stab*100)+'%';
+      addLog(`Kapal terdeteksi — conf:${conf} | frame:${frameCount}`,'detect');
+      setDetectStatus('detected');
+
+      if(Math.random()>0.65){
+        alertCount++;
+        document.getElementById('s-alerts').textContent=alertCount;
+        addLog('⚠ Kapal masuk zona sandar! Periksa dermaga.','alert');
+        showAlert();
+        setTimeout(()=>setDetectStatus('scanning'),4000);
+      } else {
+        setTimeout(()=>setDetectStatus('scanning'),3000);
+      }
+    }
+    if(tick%30===0) addLog(`Heartbeat — model stabil | frame ${frameCount} | FPS ${fps}`,'info');
+  },500);
+}
+
+function setDetectStatus(mode){
+  const el=document.getElementById('detect-status');
+  const ico=document.getElementById('ds-icon');
+  const lbl=document.getElementById('ds-label');
+  const sub=document.getElementById('ds-sub');
+  if(mode==='detected'){
+    el.classList.add('alert');
+    ico.textContent='🚢'; lbl.textContent='KAPAL TERDETEKSI'; sub.textContent='Objek kapal ditemukan di frame';
+  } else {
+    el.classList.remove('alert');
+    ico.textContent='🔍'; lbl.textContent='MEMINDAI...'; sub.textContent='Menunggu objek kapal';
+  }
+}
+
+let alertTimer=null;
+function showAlert(){
+  const b=document.getElementById('alert-banner'); b.classList.add('show');
+  clearTimeout(alertTimer); alertTimer=setTimeout(()=>b.classList.remove('show'),10000);
+}
+function dismissAlert(){
+  document.getElementById('alert-banner').classList.remove('show');
+  addLog('Alert di-dismiss oleh operator.','warn');
+}
+
+function captureFrame(){ addLog(`📸 Frame #${frameCount} di-capture oleh operator.`,'warn'); }
+function clearLog(){ document.getElementById('log-area').innerHTML=''; addLog('Log di-reset oleh operator.','system'); }
+function updateThreshold(val){
+  const v=(val/100).toFixed(2);
+  document.getElementById('thresh-label').textContent=v;
+  document.getElementById('ff-thresh').textContent=v;
+  addLog(`Confidence threshold diubah → ${v}`,'system');
+}
+function updateGeo(val){
+  const map={1:'LOW',2:'MED',3:'HIGH'};
+  document.getElementById('geo-label').textContent=map[val]||'MED';
+  addLog(`Geofence sensitivity → ${map[val]}`,'system');
+}
+
+window.addEventListener('load',()=>{
+  document.getElementById('yolo-stream').src='http://localhost:5000/video_feed';
+  addLog('Menghubungkan ke localhost:5000/video_feed...','system');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,5124 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>AIS Monitoring</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* ═══════════════════════════════
+   TOKENS
+═══════════════════════════════ */
+    :root {
+      --bg: #08101f;
+      --panel: #0d1627;
+      --panel2: #111e35;
+      --panel3: #162040;
+      --border: #1b2d4a;
+      --border2: #243555;
+      --accent: #00c8ff;
+      --accent2: #0070d8;
+      --green: #00e676;
+      --red: #ff1744;
+      --yellow: #ffd740;
+      --orange: #ff9100;
+      --pink: #ff6eb0;
+      --purple: #b39ddb;
+      --text: #cdd6f4;
+      --text2: #6b7fa8;
+      --text3: #3d5278;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --sidebar-w: 288px;
+      --topbar-h: 52px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow: hidden
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer
+    }
+
+    /* ── TOPBAR ── */
+    #topbar {
+      height: var(--topbar-h);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 12px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 900;
+      transform: translateZ(0)
+    }
+
+    #topbar.hidden {
+      display: none !important
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-right: 4px
+    }
+
+    .logo-icon {
+      font-size: 22px;
+      color: var(--accent)
+    }
+
+    .logo-text {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: .4px
+    }
+
+    .logo-sub {
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 1px
+    }
+
+    #search-box {
+      height: 32px;
+      width: 165px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 20px;
+      padding: 0 13px;
+      font-size: 12px;
+      outline: none
+    }
+
+    #search-box:focus {
+      border-color: var(--accent)
+    }
+
+    #search-box::placeholder {
+      color: var(--text3)
+    }
+
+    .spacer {
+      flex: 1
+    }
+
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 11px;
+      white-space: nowrap;
+      user-select: none
+    }
+
+    .pill .v {
+      font-weight: 700;
+      color: var(--accent)
+    }
+
+    #conn-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 11px
+    }
+
+    #conn-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 5px var(--red);
+      transition: all .3s
+    }
+
+    #conn-dot.on {
+      background: var(--green);
+      box-shadow: 0 0 5px var(--green)
+    }
+
+    #conn-lbl {
+      font-weight: 600;
+      color: var(--text2)
+    }
+
+    .tb-btn {
+      height: 32px;
+      padding: 0 11px;
+      font-size: 11px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all .15s;
+      white-space: nowrap
+    }
+
+    .tb-btn:hover {
+      background: var(--panel);
+      border-color: var(--border2)
+    }
+
+    .tb-btn.active {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    .tb-badge {
+      min-width: 16px;
+      height: 16px;
+      border-radius: 8px;
+      background: var(--accent2);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 0 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .tb-badge.err {
+      background: var(--red)
+    }
+
+    /* ── LAYOUT ── */
+    #layout {
+      flex: 1;
+      display: flex;
+      overflow: hidden
+    }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: width .3s ease, opacity .3s ease
+    }
+
+    #sidebar.hidden {
+      width: 0 !important;
+      min-width: 0 !important;
+      flex-basis: 0 !important;
+      border-right: none !important;
+      opacity: 0;
+      pointer-events: none
+    }
+
+    #filter-class {
+      display: flex;
+      gap: 3px;
+      padding: 5px 8px 3px;
+      flex-wrap: nowrap
+    }
+
+    .cftab {
+      flex: 1;
+      text-align: center;
+      font-size: 11px;
+      padding: 4px 0;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      color: var(--text2);
+      background: rgba(255, 255, 255, .04);
+      transition: all .15s;
+      white-space: nowrap
+    }
+
+    .cftab.active {
+      border-color: var(--accent2);
+      color: var(--accent2);
+      background: rgba(0, 230, 200, .08);
+      font-weight: 600
+    }
+
+    .cftab:hover {
+      border-color: var(--border2);
+      color: var(--text)
+    }
+
+    #filter-toggle {
+      display: flex;
+      gap: 3px;
+      padding: 1px 8px 5px;
+      flex-wrap: wrap
+    }
+
+    .togtab {
+      flex: 1;
+      text-align: center;
+      font-size: 10px;
+      padding: 3px 6px;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      color: var(--text2);
+      background: var(--panel2);
+      transition: all .15s;
+      white-space: nowrap;
+      opacity: .55;
+      min-width: fit-content
+    }
+
+    .togtab.active {
+      opacity: 1;
+      border-color: var(--accent2);
+      color: var(--accent2);
+      background: rgba(0, 230, 200, .08)
+    }
+
+    .togtab:hover {
+      opacity: 1;
+      border-color: var(--border2);
+      color: var(--text);
+      background: rgba(255, 255, 255, .06)
+    }
+
+    #sb-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .7px
+    }
+
+    .count-badge {
+      background: var(--accent2);
+      color: #fff;
+      border-radius: 10px;
+      padding: 1px 8px;
+      font-size: 10px;
+      font-weight: 700
+    }
+
+    #ship-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+      position: relative
+    }
+
+    #ship-list::-webkit-scrollbar {
+      width: 3px
+    }
+
+    #ship-list::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px
+    }
+
+    /* Virtual scroll spacers */
+    #vscroll-spacer-top,
+    #vscroll-spacer-bot {
+      width: 100%;
+      flex-shrink: 0;
+      pointer-events: none
+    }
+
+    #vscroll-items {
+      padding: 4px
+    }
+
+    .si {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: 7px;
+      margin-bottom: 0;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all .13s;
+      box-sizing: border-box
+    }
+
+    .si:hover {
+      background: var(--panel2);
+      border-color: var(--border)
+    }
+
+    .si.sel {
+      background: rgba(0, 200, 255, .07);
+      border-color: var(--accent)
+    }
+
+    .si-ic {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px
+    }
+
+    .si-body {
+      flex: 1;
+      min-width: 0
+    }
+
+    .si-name {
+      font-size: 12.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .si-meta {
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 1px
+    }
+
+    .si-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 3px;
+      flex-shrink: 0
+    }
+
+    .si-sog {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent)
+    }
+
+    .si-geo-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      display: none
+    }
+
+    .si-focus {
+      margin-left: 2px;
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: .45;
+      transition: .15s;
+      flex-shrink: 0;
+      font-size: 11px;
+      color: var(--text)
+    }
+
+    .si-focus:hover {
+      opacity: 1;
+      background: var(--accent)18;
+      color: var(--accent)
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 10px;
+      color: var(--text2);
+      font-size: 12px;
+      text-align: center;
+      padding: 20px
+    }
+
+    .empty-state i {
+      font-size: 36px;
+      opacity: .25
+    }
+
+
+    /* ── MAP ── */
+    #map-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden
+    }
+
+    #map {
+      width: 100%;
+      height: 100%
+    }
+
+    /* Chart panel */
+    #chart-panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 700;
+      background: rgba(10, 18, 32, .93);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      width: 185px;
+      transition: opacity .25s, transform .25s
+    }
+
+    #chart-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px)
+    }
+
+    #chart-panel-hdr {
+      padding: 7px 11px;
+      background: rgba(13, 22, 39, .95);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--text2);
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    #chart-panel-hdr i {
+      color: var(--accent)
+    }
+
+    .chart-option {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 11px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255, 255, 255, .04);
+      transition: background .13s;
+      font-size: 11px
+    }
+
+    .chart-option:last-child {
+      border-bottom: none
+    }
+
+    .chart-option:hover {
+      background: rgba(255, 255, 255, .04)
+    }
+
+    .chart-option.active {
+      background: rgba(0, 200, 255, .08)
+    }
+
+    .chart-radio {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 2px solid var(--border2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color .15s
+    }
+
+    .chart-option.active .chart-radio {
+      border-color: var(--accent)
+    }
+
+    .chart-radio-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: none
+    }
+
+    .chart-option.active .chart-radio-dot {
+      display: block
+    }
+
+    .chart-name {
+      font-weight: 600;
+      color: var(--text)
+    }
+
+    .chart-desc {
+      font-size: 9.5px;
+      color: var(--text2)
+    }
+
+    /* Overlay panel */
+    #overlay-panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 699;
+      margin-top: 0;
+      background: rgba(10, 18, 32, .93);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      width: 185px;
+      transition: opacity .25s, transform .25s
+    }
+
+    #overlay-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px)
+    }
+
+    #overlay-panel-hdr {
+      padding: 7px 11px;
+      background: rgba(13, 22, 39, .95);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--text2);
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    #overlay-panel-hdr i {
+      color: var(--yellow)
+    }
+
+    .ov-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 11px;
+      border-bottom: 1px solid rgba(255, 255, 255, .04);
+      font-size: 11px
+    }
+
+    .ov-row:last-child {
+      border-bottom: none
+    }
+
+    .ov-label {
+      display: flex;
+      align-items: center;
+      gap: 7px
+    }
+
+    .ov-label i {
+      width: 14px;
+      text-align: center;
+      font-size: 11px
+    }
+
+    .toggle {
+      position: relative;
+      width: 32px;
+      height: 17px
+    }
+
+    .toggle input {
+      display: none
+    }
+
+    .toggle-track {
+      width: 100%;
+      height: 100%;
+      border-radius: 9px;
+      background: var(--border2);
+      transition: background .2s
+    }
+
+    .toggle input:checked+.toggle-track {
+      background: var(--accent2)
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: #fff;
+      transition: left .2s;
+      pointer-events: none
+    }
+
+    .toggle input:checked~.toggle-thumb {
+      left: 17px
+    }
+
+    /* Coord bar */
+    #coord-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 700;
+      background: rgba(10, 18, 32, .88);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 3px 12px;
+      font-size: 10.5px;
+      color: var(--text2);
+      font-family: 'Courier New', monospace
+    }
+
+    #coord-bar.hidden {
+      display: none !important
+    }
+
+    #coord-lat,
+    #coord-lon {
+      color: var(--text);
+      min-width: 115px
+    }
+
+    #coord-zoom {
+      color: var(--accent)
+    }
+
+    .coord-sep {
+      color: var(--border2)
+    }
+
+    /* Legend */
+    #legend {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 700;
+      background: rgba(10, 18, 32, .93);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      font-size: 10.5px;
+      min-width: 112px;
+      transition: opacity .25s, transform .25s
+    }
+
+    #legend.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px)
+    }
+
+    #legend h4 {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--text2);
+      margin-bottom: 7px
+    }
+
+    .leg-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 3px 0
+    }
+
+    .leg-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0
+    }
+
+    /* Detail panel */
+    #detail {
+      position: absolute;
+      bottom: 26px;
+      right: 10px;
+      z-index: 700;
+      width: 290px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, .55);
+      display: none;
+      animation: slideUp .2s ease
+    }
+
+    #detail.vis {
+      display: block
+    }
+
+    #detail.hidden {
+      display: none !important
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    #det-hdr {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--border)
+    }
+
+    #det-emoji {
+      font-size: 20px
+    }
+
+    #det-name {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 700
+    }
+
+    #det-class {
+      font-size: 9px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: rgba(0, 200, 255, .12);
+      color: var(--accent);
+      border: 1px solid rgba(0, 200, 255, .3)
+    }
+
+    #det-close {
+      background: none;
+      border: none;
+      color: var(--text2);
+      font-size: 15px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      line-height: 1
+    }
+
+    #det-close:hover {
+      color: var(--text);
+      background: var(--border)
+    }
+
+    #det-compass-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, .04)
+    }
+
+    .det-speed-val {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1
+    }
+
+    .det-speed-unit {
+      font-size: 11px;
+      color: var(--text2)
+    }
+
+    .det-cog-txt {
+      font-size: 11px;
+      color: var(--text2);
+      margin-top: 3px
+    }
+
+    #det-zones-row {
+      padding: 6px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, .04);
+      display: none
+    }
+
+    #det-zones-row.vis {
+      display: block
+    }
+
+    .det-zone-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+      margin: 2px 3px 2px 0;
+      border: 1px solid
+    }
+
+    #det-rows {
+      padding: 5px 12px
+    }
+
+    .dr {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, .03);
+      font-size: 11.5px
+    }
+
+    .dr:last-child {
+      border-bottom: none
+    }
+
+    .dk {
+      color: var(--text2)
+    }
+
+    .dv {
+      font-weight: 600;
+      max-width: 165px;
+      text-align: right;
+      word-break: break-word
+    }
+
+    #det-timer {
+      margin: 6px 12px;
+      background: var(--panel2);
+      border-radius: 6px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px
+    }
+
+    .timer-bar-wrap {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden
+    }
+
+    #timer-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1s linear, background .4s
+    }
+
+    #timer-lbl {
+      font-weight: 700;
+      min-width: 36px;
+      text-align: right
+    }
+
+    #det-locate {
+      display: block;
+      margin: 0 12px 10px;
+      padding: 7px 0;
+      background: rgba(0, 200, 255, .08);
+      border: 1px solid rgba(0, 200, 255, .25);
+      color: var(--accent);
+      border-radius: 6px;
+      font-size: 11px;
+      text-align: center;
+      transition: all .15s
+    }
+
+    #det-locate:hover {
+      background: rgba(0, 200, 255, .16)
+    }
+
+    /* Leaflet dark */
+    .leaflet-control-zoom a {
+      background: #ffffff !important;
+      color: #1a2744 !important;
+      border-color: #d0dce8 !important;
+      font-size: 15px !important;
+      width: 32px !important;
+      height: 32px !important;
+      line-height: 32px !important;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .15) !important
+    }
+
+    .leaflet-control-zoom a:hover {
+      background: #dbeafe !important;
+      color: #0070d8 !important;
+      border-color: #0070d8 !important
+    }
+
+    /* Geser zoom control ke atas coord bar (24px) */
+    .leaflet-bottom.leaflet-left {
+      bottom: 28px !important
+    }
+
+    .leaflet-control-attribution {
+      background: rgba(13, 22, 39, .75) !important;
+      color: var(--text3) !important;
+      font-size: 9px !important
+    }
+
+    .leaflet-control-attribution a {
+      color: var(--text2) !important
+    }
+
+    .leaflet-control-scale-line {
+      background: rgba(13, 22, 39, .8) !important;
+      color: var(--text) !important;
+      border-color: var(--text2) !important;
+      font-size: 10px !important
+    }
+
+    .leaflet-draw-toolbar a {
+      background-color: rgba(13, 22, 39, .9) !important;
+      border-color: var(--border) !important
+    }
+
+    .leaflet-draw-toolbar a:hover {
+      background-color: var(--panel2) !important
+    }
+
+    .ship-pin,
+    .aton-pin {
+      cursor: pointer;
+      position: relative;
+      overflow: visible
+    }
+
+    .ship-pin svg,
+    .aton-pin svg {
+      overflow: visible
+    }
+
+    .ship-label {
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-top: 2px;
+      font-size: 9px;
+      font-weight: 600;
+      color: #1a2a3a;
+      background: rgba(255, 255, 255, .88);
+      padding: 1px 5px;
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
+      white-space: nowrap;
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: none;
+      text-align: center;
+      line-height: 1.3;
+      letter-spacing: .2px
+    }
+
+    /* Geo event toast */
+    #geo-toast {
+      position: fixed;
+      top: 62px;
+      right: 14px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 320px;
+      pointer-events: none
+    }
+
+    .geo-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 13px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
+      animation: slideIn .25s ease;
+      pointer-events: all
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    .geo-card.enter {
+      border-left: 3px solid var(--red)
+    }
+
+    .geo-card.exit {
+      border-left: 3px solid var(--yellow)
+    }
+
+    .geo-card-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      margin-top: 1px
+    }
+
+    .geo-card-body {
+      flex: 1;
+      min-width: 0
+    }
+
+    .geo-card-title {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 2px
+    }
+
+    .geo-card-sub {
+      font-size: 10.5px;
+      color: var(--text2);
+      line-height: 1.4
+    }
+
+    .geo-card-close {
+      background: none;
+      border: none;
+      color: var(--text3);
+      font-size: 14px;
+      padding: 0 0 0 4px;
+      flex-shrink: 0
+    }
+
+    /* ══════════════════════════════════
+   MODAL BASE
+══════════════════════════════════ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: rgba(0, 0, 0, .65);
+      backdrop-filter: blur(3px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px
+    }
+
+    .modal-overlay.open {
+      display: flex
+    }
+
+    .modal-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .7);
+      overflow: hidden
+    }
+
+    .modal-hdr {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      flex: 1
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text2);
+      font-size: 18px;
+      padding: 3px 6px;
+      border-radius: 5px;
+      line-height: 1
+    }
+
+    .modal-close:hover {
+      color: var(--text);
+      background: var(--border)
+    }
+
+    /* ── SOURCES MODAL ── */
+    #src-modal .modal-box {
+      max-width: 800px;
+      max-height: 90vh
+    }
+
+    #src-modal .modal-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0
+    }
+
+    /* Type tabs */
+    .src-type-tab {
+      flex: 1;
+      padding: 9px 0;
+      font-size: 12px;
+      background: var(--panel2);
+      border: none;
+      color: var(--text2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: all .15s;
+      font-family: inherit
+    }
+
+    .src-type-tab:not(:last-child) {
+      border-right: 1px solid var(--border)
+    }
+
+    .src-type-tab.active {
+      background: rgba(0, 200, 255, .1);
+      color: var(--accent);
+      font-weight: 600
+    }
+
+    .src-type-tab:hover:not(.active) {
+      background: var(--panel);
+      color: var(--text)
+    }
+
+    /* Port item */
+    .port-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      transition: all .15s;
+      font-size: 11.5px
+    }
+
+    .port-item:hover {
+      border-color: var(--accent);
+      background: rgba(0, 200, 255, .06)
+    }
+
+    .port-item.selected {
+      border-color: var(--accent);
+      background: rgba(0, 200, 255, .1)
+    }
+
+    .port-path {
+      font-weight: 700;
+      color: var(--text);
+      font-family: 'Courier New', monospace
+    }
+
+    .port-mfr {
+      color: var(--text2);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 10.5px
+    }
+
+    /* Preset buttons */
+    .preset-btn {
+      padding: 5px 11px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: inherit
+    }
+
+    .preset-btn:hover {
+      border-color: var(--border2);
+      color: var(--text)
+    }
+
+    #src-list-col {
+      width: 325px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden
+    }
+
+    #src-list-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 10.5px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .6px
+    }
+
+    .btn-add {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(0, 200, 255, .1);
+      border: 1px solid rgba(0, 200, 255, .3);
+      color: var(--accent);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      transition: all .15s
+    }
+
+    .btn-add:hover {
+      background: rgba(0, 200, 255, .18)
+    }
+
+    #src-list-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px
+    }
+
+    #src-list-body::-webkit-scrollbar {
+      width: 3px
+    }
+
+    #src-list-body::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px
+    }
+
+    .src-card {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 12px;
+      margin-bottom: 7px;
+      cursor: pointer;
+      transition: all .15s
+    }
+
+    .src-card:hover {
+      border-color: var(--border2)
+    }
+
+    .src-card.active-edit {
+      border-color: var(--accent)
+    }
+
+    .src-card-top {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 7px
+    }
+
+    .src-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: all .3s
+    }
+
+    .src-status-dot.connected {
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green)
+    }
+
+    .src-status-dot.connecting {
+      background: var(--yellow);
+      box-shadow: 0 0 6px var(--yellow);
+      animation: blink 1s infinite
+    }
+
+    .src-status-dot.disconnected {
+      background: var(--red);
+      box-shadow: 0 0 4px var(--red)
+    }
+
+    .src-status-dot.disabled {
+      background: var(--text3)
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    .src-name {
+      font-size: 13px;
+      font-weight: 600;
+      flex: 1
+    }
+
+    .src-actions {
+      display: flex;
+      gap: 5px
+    }
+
+    .src-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text2);
+      border-radius: 5px;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      transition: all .15s
+    }
+
+    .src-btn:hover {
+      border-color: var(--border2);
+      color: var(--text)
+    }
+
+    .src-btn.danger:hover {
+      border-color: var(--red);
+      color: var(--red)
+    }
+
+    .src-btn.toggle-on {
+      border-color: var(--green);
+      color: var(--green)
+    }
+
+    .src-btn.toggle-off {
+      border-color: var(--text3);
+      color: var(--text3)
+    }
+
+    .src-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      font-size: 10.5px
+    }
+
+    .src-info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 1px
+    }
+
+    .src-info-key {
+      color: var(--text3);
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: .4px
+    }
+
+    .src-info-val {
+      color: var(--text);
+      font-weight: 600
+    }
+
+    .src-status-text.connected {
+      color: var(--green)
+    }
+
+    .src-status-text.disconnected {
+      color: var(--red)
+    }
+
+    .src-status-text.connecting {
+      color: var(--yellow)
+    }
+
+    .src-status-text.disabled {
+      color: var(--text3)
+    }
+
+    .src-alert-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 9.5px;
+      margin-top: 5px;
+      background: rgba(255, 215, 64, .1);
+      border: 1px solid rgba(255, 215, 64, .25);
+      color: var(--yellow)
+    }
+
+    .src-alert-badge.off {
+      background: rgba(107, 127, 168, .08);
+      border-color: rgba(107, 127, 168, .2);
+      color: var(--text3)
+    }
+
+    /* ── GEOFENCE MODAL ── */
+    #geo-modal .modal-box {
+      max-width: 860px;
+      max-height: 90vh
+    }
+
+    #geo-modal .modal-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0
+    }
+
+    /* Zone list col */
+    #zone-list-col {
+      width: 310px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden
+    }
+
+    #zone-list-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 10.5px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: .6px
+    }
+
+    #zone-list-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px
+    }
+
+    #zone-list-body::-webkit-scrollbar {
+      width: 3px
+    }
+
+    #zone-list-body::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px
+    }
+
+    .zone-card {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 12px;
+      margin-bottom: 7px;
+      cursor: pointer;
+      transition: all .15s;
+      border-left: 3px solid var(--border2)
+    }
+
+    .zone-card:hover {
+      border-color: var(--border2)
+    }
+
+    .zone-card.active-edit {
+      border-color: var(--accent)
+    }
+
+    .zone-card-top {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 7px
+    }
+
+    .zone-color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0
+    }
+
+    .zone-card-name {
+      font-size: 13px;
+      font-weight: 600;
+      flex: 1
+    }
+
+    .zone-card-actions {
+      display: flex;
+      gap: 5px
+    }
+
+    .zone-info-row {
+      font-size: 10.5px;
+      color: var(--text2);
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    .zone-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px
+    }
+
+    .zone-ship-count {
+      font-weight: 700;
+      color: var(--green)
+    }
+
+    .zone-disabled-badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 10px;
+      background: rgba(107, 127, 168, .1);
+      border: 1px solid rgba(107, 127, 168, .2);
+      color: var(--text3);
+      font-size: 9.5px;
+      margin-top: 5px
+    }
+
+    .zone-alert-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-size: 9.5px;
+      margin-top: 5px;
+      background: rgba(255, 215, 64, .1);
+      border: 1px solid rgba(255, 215, 64, .25);
+      color: var(--yellow)
+    }
+
+    /* Zone form col */
+    #zone-form-col {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 0
+    }
+
+    #zone-form-col::-webkit-scrollbar {
+      width: 3px
+    }
+
+    #zone-form-col::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 3px
+    }
+
+    #zform-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    #zform-title i {
+      color: var(--accent)
+    }
+
+    /* Draw map inline */
+
+    /* ── Fullscreen draw map ── */
+    #draw-map-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 14px;
+      position: relative
+    }
+
+    #draw-map {
+      height: 280px;
+      background: #f0f4f8
+    }
+
+    #btn-fullscreen-draw {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 1000;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text2);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
+      transition: all .15s;
+    }
+
+    #btn-fullscreen-draw:hover {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    /* Fullscreen mode */
+    #draw-map-wrap.fullscreen {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 9999 !important;
+      border-radius: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+    }
+
+    #draw-map-wrap.fullscreen #draw-map {
+      height: 100vh !important;
+    }
+
+    #draw-map-wrap.fullscreen #btn-fullscreen-draw {
+      top: 12px;
+      right: 12px;
+      width: 38px;
+      height: 38px;
+      font-size: 16px;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
+    }
+
+    #draw-map-wrap.fullscreen #draw-tip {
+      bottom: 16px;
+      left: 16px;
+      top: auto;
+      transform: none;
+      background: rgba(255, 255, 255, .92);
+      border: 1px solid #d0dce8;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 11px;
+      max-width: 280px;
+      line-height: 1.4;
+    }
+
+    #draw-map-wrap.fullscreen #btn-clear-draw {
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      top: auto;
+    }
+
+    /* Overlay gelap saat fullscreen */
+    #draw-fullscreen-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .5);
+      z-index: 9998;
+    }
+
+    #draw-fullscreen-overlay.show {
+      display: block
+    }
+
+    #draw-tip {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      transform: none;
+      z-index: 500;
+      background: rgba(255, 255, 255, .92);
+      border: 1px solid #d0dce8;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 10px;
+      color: #4a6080;
+      pointer-events: none;
+      max-width: 260px;
+      line-height: 1.4;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .08)
+    }
+
+    #btn-clear-draw {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 500;
+      padding: 5px 10px;
+      background: rgba(255, 23, 68, .12);
+      border: 1px solid rgba(255, 23, 68, .3);
+      color: var(--red);
+      border-radius: 6px;
+      font-size: 11px;
+      display: none
+    }
+
+    #btn-clear-draw.show {
+      display: flex;
+      align-items: center;
+      gap: 5px
+    }
+
+    /* Color swatches */
+    .color-swatches {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      margin-top: 6px
+    }
+
+    .color-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all .15s;
+      flex-shrink: 0
+    }
+
+    .color-swatch.active {
+      border-color: #fff;
+      transform: scale(1.15)
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.1)
+    }
+
+    /* Common form styles */
+    .form-section {
+      margin-bottom: 16px
+    }
+
+    .form-section-title {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      color: var(--text2);
+      margin-bottom: 10px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px
+    }
+
+    .form-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px
+    }
+
+    .form-group label {
+      font-size: 11px;
+      color: var(--text2);
+      font-weight: 500
+    }
+
+    .form-input {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 8px 11px;
+      font-size: 12.5px;
+      outline: none;
+      width: 100%;
+      font-family: inherit
+    }
+
+    .form-input:focus {
+      border-color: var(--accent)
+    }
+
+    .form-input::placeholder {
+      color: var(--text3)
+    }
+
+    .form-hint {
+      font-size: 10px;
+      color: var(--text3);
+      margin-top: 3px;
+      line-height: 1.4
+    }
+
+    .form-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 10px
+    }
+
+    .form-toggle-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px
+    }
+
+    .form-toggle-label b {
+      font-size: 12px
+    }
+
+    .form-toggle-label span {
+      font-size: 10px;
+      color: var(--text2)
+    }
+
+    .email-config-box {
+      background: var(--panel3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-top: 4px
+    }
+
+    .email-status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      margin-bottom: 8px
+    }
+
+    .email-status-row.ok {
+      background: rgba(0, 230, 118, .08);
+      border: 1px solid rgba(0, 230, 118, .2);
+      color: var(--green)
+    }
+
+    .email-status-row.warn {
+      background: rgba(255, 215, 64, .08);
+      border: 1px solid rgba(255, 215, 64, .2);
+      color: var(--yellow)
+    }
+
+    .email-status-row.err {
+      background: rgba(255, 23, 68, .08);
+      border: 1px solid rgba(255, 23, 68, .2);
+      color: var(--red)
+    }
+
+    #delete-confirm,
+    #zdel-confirm {
+      display: none;
+      background: rgba(255, 23, 68, .06);
+      border: 1px solid rgba(255, 23, 68, .25);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 10px
+    }
+
+    #delete-confirm.show,
+    #zdel-confirm.show {
+      display: block
+    }
+
+    #delete-confirm p,
+    #zdel-confirm p {
+      font-size: 12px;
+      margin-bottom: 10px;
+      color: var(--text)
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0
+    }
+
+    .btn-primary {
+      flex: 1;
+      padding: 9px 0;
+      background: var(--accent2);
+      border: none;
+      color: #fff;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background .15s
+    }
+
+    .btn-primary:hover {
+      background: #0083f5
+    }
+
+    .btn-primary:disabled {
+      background: var(--text3)
+    }
+
+    .btn-secondary {
+      padding: 9px 16px;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      border-radius: 7px;
+      font-size: 13px;
+      transition: all .15s
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--border2);
+      color: var(--text)
+    }
+
+    .btn-danger {
+      padding: 9px 16px;
+      background: rgba(255, 23, 68, .1);
+      border: 1px solid rgba(255, 23, 68, .3);
+      color: var(--red);
+      border-radius: 7px;
+      font-size: 13px;
+      transition: all .15s
+    }
+
+    .btn-danger:hover {
+      background: rgba(255, 23, 68, .2)
+    }
+
+    .btn-test-email {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: center;
+      padding: 7px 0;
+      width: 100%;
+      background: rgba(255, 215, 64, .08);
+      border: 1px solid rgba(255, 215, 64, .25);
+      color: var(--yellow);
+      border-radius: 6px;
+      font-size: 11.5px;
+      transition: all .15s;
+      margin-top: 8px
+    }
+
+    .btn-test-email:hover {
+      background: rgba(255, 215, 64, .15)
+    }
+
+    .btn-test-email:disabled {
+      opacity: .5
+    }
+
+    /* Dropdown menu items */
+    .dd-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      padding: 9px 14px;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: background .13s;
+      font-family: inherit
+    }
+
+    .dd-item:hover {
+      background: var(--panel2)
+    }
+
+    .dd-item i {
+      width: 14px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text2)
+    }
+
+    /* ── LOGIN MODAL ── */
+    #login-modal .modal-box {
+      max-width: 400px
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 24px
+    }
+
+    .login-logo i {
+      font-size: 40px;
+      color: var(--accent)
+    }
+
+    .login-logo h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-top: 8px
+    }
+
+    .login-logo p {
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 4px
+    }
+
+    .login-body {
+      padding: 24px
+    }
+
+    .login-error {
+      background: rgba(255, 23, 68, .1);
+      border: 1px solid rgba(255, 23, 68, .3);
+      color: var(--red);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      margin-bottom: 14px;
+      display: none
+    }
+
+    .login-error.show {
+      display: block
+    }
+
+    /* ── USERS MODAL ── */
+    #users-modal .modal-box {
+      max-width: 800px;
+      max-height: 88vh
+    }
+
+    #users-modal .modal-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0
+    }
+
+    .user-card {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 12px;
+      margin-bottom: 7px;
+      cursor: pointer;
+      transition: all .15s
+    }
+
+    .user-card:hover {
+      border-color: var(--border2)
+    }
+
+    .user-card.active-edit {
+      border-color: var(--accent)
+    }
+
+    .user-card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 5px
+    }
+
+    .user-avatar-sm {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0
+    }
+
+    .user-card-info {
+      flex: 1;
+      min-width: 0
+    }
+
+    .user-card-name {
+      font-size: 13px;
+      font-weight: 600
+    }
+
+    .user-card-username {
+      font-size: 10.5px;
+      color: var(--text2)
+    }
+
+    .role-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600
+    }
+
+    .role-badge.admin {
+      background: rgba(255, 23, 68, .12);
+      color: var(--red);
+      border: 1px solid rgba(255, 23, 68, .3)
+    }
+
+    .role-badge.operator {
+      background: rgba(255, 215, 64, .12);
+      color: var(--yellow);
+      border: 1px solid rgba(255, 215, 64, .3)
+    }
+
+    .role-badge.viewer {
+      background: rgba(0, 200, 255, .1);
+      color: var(--accent);
+      border: 1px solid rgba(0, 200, 255, .25)
+    }
+
+    .user-inactive {
+      opacity: .5
+    }
+
+    /* Profile modal */
+    #profile-modal .modal-box {
+      max-width: 440px
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(13, 22, 39, .95);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity .25s;
+      pointer-events: none
+    }
+
+    #toast.show {
+      opacity: 1
+    }
+
+    #toast.ok {
+      border-color: var(--green);
+      color: var(--green)
+    }
+
+    #toast.err {
+      border-color: var(--red);
+      color: var(--red)
+    }
+
+    /* ── LEAFLET MEASURE dark theme ──────────── */
+    .leaflet-control-measure {
+      background: rgba(13, 22, 39, .92) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius) !important;
+      color: var(--text) !important;
+      font-family: 'Segoe UI', system-ui, sans-serif !important
+    }
+
+    .leaflet-control-measure a.leaflet-measure-initiate {
+      background: rgba(13, 22, 39, .92) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+      font-size: 13px !important;
+      padding: 5px 10px !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 6px !important
+    }
+
+    .leaflet-control-measure a.leaflet-measure-initiate:hover {
+      background: var(--panel2) !important;
+      color: var(--accent) !important;
+      border-color: var(--accent) !important
+    }
+
+    .leaflet-measure-resultpopup {
+      background: var(--panel) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      border-radius: var(--radius) !important;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, .5) !important;
+      font-family: 'Segoe UI', system-ui, sans-serif !important;
+      min-width: 200px !important
+    }
+
+    .leaflet-measure-resultpopup h3 {
+      background: var(--panel2) !important;
+      border-bottom: 1px solid var(--border) !important;
+      color: var(--accent) !important;
+      padding: 8px 12px !important;
+      margin: 0 !important;
+      font-size: 12px !important;
+      text-transform: uppercase !important;
+      letter-spacing: .6px !important
+    }
+
+    .leaflet-measure-resultpopup p {
+      padding: 8px 12px !important;
+      margin: 4px 0 !important;
+      font-size: 12px !important;
+      color: var(--text) !important
+    }
+
+    .leaflet-measure-resultpopup p.lastpoint-label {
+      color: var(--text2) !important;
+      font-size: 10.5px !important
+    }
+
+    .leaflet-measure-resultpopup .tasks a {
+      background: var(--accent2) !important;
+      color: #fff !important;
+      border-radius: 5px !important;
+      padding: 5px 10px !important;
+      font-size: 11px !important;
+      margin: 4px !important;
+      display: inline-block !important
+    }
+
+    /* Aktif state tombol pengukur */
+    .leaflet-control-measure.leaflet-control-measure-on a.leaflet-measure-initiate {
+      background: rgba(0, 200, 255, .15) !important;
+      color: var(--accent) !important;
+      border-color: var(--accent) !important
+    }
+
+    /* Titik & garis pengukur */
+    .leaflet-measure-path-measurement {
+      color: var(--text) !important;
+      font-size: 11px !important;
+      font-weight: 600 !important;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, .8) !important
+    }
+
+    #restore-btn {
+      position: fixed;
+      bottom: 52px;
+      left: 10px;
+      z-index: 800;
+      background: rgba(13, 22, 39, .92);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      border-radius: 8px;
+      padding: 8px 13px;
+      font-size: 12px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      gap: 7px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .4);
+      transition: border-color .15s, background .15s;
+      font-family: inherit;
+    }
+
+    #restore-btn:hover {
+      background: rgba(0, 200, 255, .12);
+      border-color: var(--accent)
+    }
+
+    #restore-btn.show {
+      display: flex
+    }
+
+    /* ══════════════════════════════════════════════
+   MOBILE RESPONSIVE — Monitoring Posisi kap
+   Breakpoints:
+     ≤480px  → mobile (HP)
+     ≤768px  → tablet / landscape HP
+     ≤1024px → small laptop / tablet landscape
+   ══════════════════════════════════════════════ */
+
+    /* ── Tablet ─────────────────────────────────── */
+    @media(max-width:1024px) {
+      :root {
+        --sidebar-w: 250px
+      }
+
+      #topbar {
+        gap: 5px;
+        padding: 0 8px
+      }
+
+      .logo-sub {
+        display: none
+      }
+
+      .pill {
+        font-size: 10px;
+        padding: 3px 8px
+      }
+
+      #search-box {
+        width: 140px
+      }
+
+      /* Sembunyikan label teks tombol, sisakan icon */
+      #btn-open-src span:not(.tb-badge) {
+        display: none
+      }
+
+      #btn-open-geo span:not(.tb-badge) {
+        display: none
+      }
+    }
+
+    /* ── Mobile & Tablet Portrait ───────────────── */
+    @media(max-width:768px) {
+      :root {
+        --topbar-h: 52px;
+        --sidebar-w: 100%;
+      }
+
+      /* ── TOPBAR ── */
+      #topbar {
+        flex-wrap: nowrap;
+        gap: 4px;
+        padding: 0 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+      }
+
+      #topbar::-webkit-scrollbar {
+        display: none
+      }
+
+      .logo-sub {
+        display: none
+      }
+
+      #search-box {
+        display: none
+      }
+
+      /* ganti dengan search di sidebar */
+      .pill {
+        display: none
+      }
+
+      #trail-btn span,
+      #fullmap-btn span {
+        display: none
+      }
+
+      /* Semua label tb-btn disembunyikan */
+      .tb-btn {
+        padding: 0 8px;
+        font-size: 11px
+      }
+
+      #btn-open-src .tb-btn-lbl,
+      #btn-open-geo .tb-btn-lbl {
+        display: none
+      }
+
+      /* User label di dropdown disembunyikan */
+      #user-label {
+        display: none !important
+      }
+
+      /* ── LAYOUT: sidebar di bawah, map di atas ── */
+      #layout {
+        flex-direction: column;
+      }
+
+      #sidebar {
+        width: 100% !important;
+        height: 45vh;
+        min-height: 200px;
+        max-height: 55vh;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        order: 2;
+        /* sidebar di bawah */
+      }
+
+      #sidebar.hidden {
+        width: 100% !important;
+        height: 0 !important;
+        min-height: 0;
+      }
+
+      /* Map area di atas */
+      #map-area {
+        order: 1;
+        height: 55vh;
+        min-height: 200px;
+      }
+
+      /* ── CONTROLS playback ── */
+      #controls {
+        padding: 6px 8px;
+        gap: 5px;
+      }
+
+      #ctrl-row {
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+
+      #ctrl-info {
+        font-size: 10px;
+      }
+
+      #speed-wrap select {
+        font-size: 10px;
+      }
+
+      .ctrl-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+      }
+
+      .ctrl-btn.play {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+      }
+
+      /* ── MAP PANELS ── */
+      #chart-panel {
+        display: none
+      }
+
+      #overlay-panel {
+        display: none
+      }
+
+      #legend {
+        display: none
+      }
+
+      #coord-bar {
+        font-size: 10px;
+        padding: 4px 8px;
+        gap: 5px
+      }
+
+      #restore-btn {
+        bottom: 32px
+      }
+
+      /* ── MODALS ── */
+      .modal-box {
+        width: 96vw !important;
+        max-width: 96vw !important;
+        max-height: 92vh !important;
+        border-radius: 10px !important;
+      }
+
+      .modal-body {
+        flex-direction: column !important
+      }
+
+      /* Source & Geo modal list kecil */
+      #src-list-col,
+      #zone-list-col {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-right: none !important;
+        border-bottom: 1px solid var(--border) !important;
+        max-height: 180px !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* Users modal */
+      #user-list-col {
+        width: 100% !important;
+        border-right: none !important;
+        border-bottom: 1px solid var(--border) !important;
+        max-height: 160px !important;
+      }
+
+      /* Form rows jadi kolom */
+      .form-row {
+        flex-direction: column !important
+      }
+
+      .form-group {
+        min-width: 0 !important;
+        width: 100% !important
+      }
+
+      /* Tabs type sumber */
+      .src-type-tab {
+        font-size: 10px !important;
+        padding: 8px 0 !important
+      }
+
+      /* ── TOPBAR mobile button ── */
+      #btn-login {
+        font-size: 11px;
+        padding: 0 8px
+      }
+
+      /* Tambah tombol toggle sidebar di peta */
+      #btn-toggle-sidebar {
+        display: flex !important;
+      }
+    }
+
+    /* ── HP kecil / landscape ─────────────────────*/
+    @media(max-width:480px) {
+      :root {
+        --topbar-h: 48px
+      }
+
+      .logo-text {
+        font-size: 13px
+      }
+
+      .logo-icon {
+        font-size: 18px
+      }
+
+      #sidebar {
+        height: 48vh;
+        max-height: 52vh
+      }
+
+      #map-area {
+        height: 52vh
+      }
+
+      /* Controls lebih ringkas */
+      #controls {
+        padding: 5px 6px
+      }
+
+      #time-display {
+        font-size: 9.5px
+      }
+
+      #time-start,
+      #time-end {
+        font-size: 8.5px
+      }
+
+      #timeline-wrap {
+        height: 30px
+      }
+
+      #timeline {
+        top: 12px
+      }
+
+      #timeline-progress {
+        top: 15px;
+        height: 5px
+      }
+    }
+
+    /* ── Landscape HP (height kecil) ──────────────*/
+    @media(max-height:500px) and (max-width:900px) {
+      #sidebar {
+        height: 40vh;
+        max-height: 40vh
+      }
+
+      #map-area {
+        height: 60vh
+      }
+
+      #controls {
+        padding: 4px 8px
+      }
+
+      #timeline-wrap {
+        height: 28px
+      }
+    }
+
+    /* Chart + Overlay stacked vertically */
+    #chart-panel {
+      position: absolute !important;
+      top: 10px !important;
+      left: 10px !important;
+      z-index: 700 !important;
+      width: 185px !important;
+    }
+
+    #overlay-panel {
+      position: absolute !important;
+      left: 10px !important;
+      width: 185px !important;
+      z-index: 700 !important;
+    }
+
+    /* JS akan set top overlay panel secara dinamis */
+
+
+    /* ── Leaflet Draw Toolbar — lebih besar & cerah ── */
+    .leaflet-draw-toolbar a {
+      width: 36px !important;
+      height: 36px !important;
+      line-height: 36px !important;
+      background-color: #ffffff !important;
+      border: 1px solid #d0dce8 !important;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .15) !important;
+    }
+
+    .leaflet-draw-toolbar a:hover {
+      background-color: #dbeafe !important;
+      border-color: #0070d8 !important;
+    }
+
+    .leaflet-draw-toolbar {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .15) !important;
+      border-radius: 8px !important;
+      overflow: hidden !important;
+    }
+
+    /* Icon lebih besar */
+    .leaflet-draw-draw-polygon {
+      background-image: url('https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/images/spritesheet.png') !important;
+      background-size: 270px 30px !important;
+      background-position: -2px -2px !important;
+      width: 36px !important;
+      height: 36px !important;
+    }
+
+    /* Toolbar action buttons */
+    .leaflet-draw-actions a {
+      height: 32px !important;
+      line-height: 32px !important;
+      font-size: 12px !important;
+      padding: 0 12px !important;
+      background: #0070d8 !important;
+      color: #fff !important;
+    }
+
+    .leaflet-draw-actions a:hover {
+      background: #005bb5 !important;
+    }
+
+    /* Custom draw button di dalam modal fullscreen */
+    #btn-draw-polygon {
+      position: absolute;
+      top: 60px;
+      left: 10px;
+      z-index: 1000;
+      background: #ffffff;
+      border: 2px solid #0070d8;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0070d8;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .15);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all .15s;
+    }
+
+    #btn-draw-polygon:hover {
+      background: #dbeafe;
+      box-shadow: 0 4px 16px rgba(0, 112, 216, .25);
+    }
+
+    #btn-draw-polygon.active {
+      background: #0070d8;
+      color: #ffffff;
+    }
+
+    /* Instruksi draw */
+    #draw-tip {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      transform: none;
+      z-index: 500;
+      background: rgba(255, 255, 255, .92);
+      border: 1px solid #d0dce8;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 10px;
+      color: #4a6080;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
+      font-weight: 500;
+      max-width: 260px;
+      white-space: normal;
+      line-height: 1.4;
+    }
+
+    #draw-map-wrap.fullscreen #draw-tip {
+      bottom: 16px;
+      left: 16px;
+      font-size: 11px;
+      max-width: 280px;
+    }
+  </style>
+  <link rel="stylesheet" href="indexim-theme.css" />
+</head>
+
+<body>
+
+  <!-- ══ TOPBAR ══ -->
+  <div id="topbar">
+    <div class="logo-wrap">
+      <i class="fa-solid fa-ship logo-icon"></i>
+      <div>
+        <div class="logo-text">Monitoring Posisi Kapal</div>
+        <div class="logo-sub">AIS</div>
+      </div>
+    </div>
+    <input id="search-box" type="text" placeholder="🔍 MMSI / nama kapal…" />
+    <div class="spacer"></div>
+    <a href="/portal-tugas-akhir.html" class="tb-btn" style="text-decoration: none;">
+      <i class="fa-solid fa-arrow-left"></i> Kembali
+    </a>
+    <div class="pill"><i class="fa-solid fa-ship" style="color:var(--accent);font-size:10px"></i><span class="v"
+        id="s-ships">0</span></div>
+    <div class="pill">RX <span class="v" id="s-rx">0</span></div>
+    <div class="pill"><i class="fa-solid fa-check" style="color:var(--green);font-size:10px"></i><span class="v"
+        id="s-dec">0</span></div>
+    <div class="pill"><i class="fa-solid fa-draw-polygon" style="color:var(--purple);font-size:10px"></i><span class="v"
+        id="s-zones">0</span></div>
+    <button class="tb-btn auth-required" id="btn-open-src" onclick="openModal('src')"><i
+        class="fa-solid fa-tower-broadcast"></i> Sumber<span class="tb-badge" id="src-badge">0</span></button>
+    <button class="tb-btn auth-required" id="btn-open-geo" onclick="openModal('geo')"><i
+        class="fa-solid fa-draw-polygon"></i> Geofence<span class="tb-badge" id="geo-badge">0</span></button>
+    <button class="tb-btn" id="trail-btn" onclick="toggleTrail()"><i class="fa-solid fa-route"></i> Trail</button>
+    <button class="tb-btn" id="ruler-btn" onclick="toggleMeasure()" title="Penggaris — ukur jarak di peta"><i
+        class="fa-solid fa-ruler"></i> Penggaris</button>
+    <button class="tb-btn" id="fullmap-btn" onclick="toggleFullMap()" title="Full Map / Sembunyikan Panel"><i
+        class="fa-solid fa-map"></i></button>
+    <!-- Mobile: toggle sidebar -->
+    <button class="tb-btn" id="btn-toggle-sidebar" onclick="toggleSidebarMobile()"
+      title="Tampilkan/Sembunyikan daftar kapal" style="display:none;position:relative">
+      <i class="fa-solid fa-list"></i>
+      <div id="mobile-sidebar-badge"
+        style="position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--accent);display:none">
+      </div>
+    </button>
+    <div id="conn-pill">
+      <div id="conn-dot"></div><span id="conn-lbl">Offline</span>
+    </div>
+    <div id="user-menu" style="display:none;position:relative">
+      <button class="tb-btn" id="user-btn" onclick="toggleUserMenu()" style="gap:7px;padding:0 10px 0 6px">
+        <div id="user-avatar"
+          style="width:24px;height:24px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">
+          A</div>
+        <span id="user-label"
+          style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px"></span>
+        <i class="fa-solid fa-chevron-down" style="font-size:9px;color:var(--text2)"></i>
+      </button>
+      <div id="user-dropdown"
+        style="display:none;position:absolute;top:38px;right:0;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius-lg);min-width:185px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:1000;transform:translateZ(0)">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border);font-size:11px">
+          <div style="font-weight:700;margin-bottom:2px" id="dd-name"></div>
+          <div style="color:var(--text2)" id="dd-role"></div>
+        </div>
+        <button class="dd-item" onclick="openModal('profile')"><i class="fa-solid fa-user-pen"></i> Profil &
+          Password</button>
+        <button class="dd-item admin-only" id="btn-manage-users" onclick="openModal('users')" style="display:none"><i
+            class="fa-solid fa-users-gear"></i> Kelola User</button>
+        <div style="border-top:1px solid var(--border)"></div>
+        <button class="dd-item" onclick="doLogout()" style="color:var(--red)"><i
+            class="fa-solid fa-right-from-bracket"></i> Logout</button>
+      </div>
+    </div>
+    <button id="btn-logout" class="tb-btn" onclick="doLogout()"
+      style="display:none;color:var(--red);padding:0 8px;font-size:14px" title="Logout"><i
+        class="fa-solid fa-right-from-bracket"></i></button>
+    <button id="btn-login" class="tb-btn" onclick="openModal('login')"
+      style="border-color:var(--accent2);color:var(--accent)"><i class="fa-solid fa-right-to-bracket"></i>
+      Login</button>
+  </div>
+
+  <!-- ══ LAYOUT ══ -->
+  <div id="layout">
+    <div id="sidebar">
+      <div id="filter-class">
+        <span class="cftab active" data-class="all">Semua</span>
+        <span class="cftab" data-class="classA">Class A</span>
+        <span class="cftab" data-class="classB">Class B</span>
+      </div>
+      <div id="filter-toggle">
+        <span class="togtab active" data-type="classA">Class A</span>
+        <span class="togtab active" data-type="classB">Class B</span>
+        <span class="togtab active" data-type="aton">AtoN</span>
+        <span class="togtab active" data-type="base">Base</span>
+        <span class="togtab active" data-type="sar">SAR</span>
+        <span class="togtab active" data-type="lrange">LR</span>
+      </div>
+      <div id="sb-hdr">Daftar Kapal <span class="count-badge" id="count-badge">0</span></div>
+      <div id="ship-list">
+        <div id="vscroll-spacer-top" style="height:0"></div>
+        <div id="vscroll-items"></div>
+        <div id="vscroll-spacer-bot" style="height:0"></div>
+        <div class="empty-state" id="empty"><i class="fa-solid fa-satellite-dish"></i><b>Menunggu data
+            AIS…</b><span>Kapal akan tampil otomatis</span></div>
+      </div>
+    </div>
+
+    <div id="map-wrap">
+      <div id="map"></div>
+
+      <!-- Chart -->
+      <div id="chart-panel">
+        <div id="chart-panel-hdr"><i class="fa-solid fa-map"></i> Chart</div>
+        <div class="chart-option" onclick="switchChart('enc',this)">
+          <div class="chart-radio">
+            <div class="chart-radio-dot"></div>
+          </div>
+          <div>
+            <div class="chart-name">🗺️ ENC Nautical</div>
+            <div class="chart-desc">Esri Ocean</div>
+          </div>
+        </div>
+        <div class="chart-option" onclick="switchChart('satellite',this)">
+          <div class="chart-radio">
+            <div class="chart-radio-dot"></div>
+          </div>
+          <div>
+            <div class="chart-name">🛰️ Satellite</div>
+            <div class="chart-desc">Esri Imagery</div>
+          </div>
+        </div>
+        <div class="chart-option active" onclick="switchChart('osm',this)">
+          <div class="chart-radio">
+            <div class="chart-radio-dot"></div>
+          </div>
+          <div>
+            <div class="chart-name">⚓ OSM Nautical</div>
+            <div class="chart-desc">OpenStreetMap</div>
+          </div>
+        </div>
+        <div class="chart-option" onclick="switchChart('dark',this)">
+          <div class="chart-radio">
+            <div class="chart-radio-dot"></div>
+          </div>
+          <div>
+            <div class="chart-name">🌑 Dark</div>
+            <div class="chart-desc">Carto Dark</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay -->
+      <div id="overlay-panel">
+        <div id="overlay-panel-hdr"><i class="fa-solid fa-layer-group"></i> Overlay</div>
+        <div class="ov-row">
+          <div class="ov-label"><i class="fa-solid fa-anchor" style="color:var(--yellow)"></i> Seamarks</div><label
+            class="toggle"><input type="checkbox" checked onchange="toggleOverlay('seamarks',this.checked)" />
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div class="ov-row">
+          <div class="ov-label"><i class="fa-solid fa-water" style="color:var(--accent)"></i> Bathymetry</div><label
+            class="toggle"><input type="checkbox" onchange="toggleOverlay('bathymetry',this.checked)" />
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div class="ov-row">
+          <div class="ov-label"><i class="fa-solid fa-globe" style="color:var(--green)"></i> Ocean Ref</div><label
+            class="toggle"><input type="checkbox" onchange="toggleOverlay('oceanref',this.checked)" />
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div class="ov-row">
+          <div class="ov-label"><i class="fa-solid fa-route" style="color:var(--purple)"></i> Trail</div><label
+            class="toggle"><input type="checkbox" id="ov-trail" checked onchange="toggleTrail()" />
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div class="ov-row">
+          <div class="ov-label"><i class="fa-solid fa-draw-polygon" style="color:var(--pink)"></i> Geofence</div><label
+            class="toggle"><input type="checkbox" id="ov-geo" checked onchange="toggleGeoOverlay(this.checked)" />
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div id="legend">
+        <h4>Legenda</h4>
+        <div class="leg-row">
+          <div class="leg-dot" style="background:#3b82f6"></div>Class A
+        </div>
+        <div class="leg-row">
+          <div class="leg-dot" style="background:#10b981"></div>Class B
+        </div>
+        <div class="leg-row">
+          <div class="leg-dot" style="background:#e91e63"></div>Base Station
+        </div>
+        <div class="leg-row">
+          <div class="leg-dot" style="background:#ef4444"></div>SAR Aircraft
+        </div>
+        <div class="leg-row">
+          <div class="leg-dot" style="background:#f97316"></div>AtoN / Buoy
+        </div>
+        <div class="leg-row" style="margin-top:6px">
+          <div class="leg-dot" style="border-radius:2px;background:#ff174460"></div>Geofence
+        </div>
+      </div>
+
+      <!-- Detail -->
+      <div id="detail">
+        <div id="det-hdr"><span id="det-emoji">🚢</span><span id="det-name">—</span><span id="det-class">Class
+            A</span><button id="det-close" onclick="closeDetail()"><i class="fa-solid fa-xmark"></i></button></div>
+        <div id="det-compass-row">
+          <svg width="54" height="54" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r="26" fill="none" stroke="#1b2d4a" stroke-width="2" />
+            <circle cx="28" cy="28" r="22" fill="none" stroke="#243555" stroke-width="1" stroke-dasharray="2,4" />
+            <text x="28" y="9" text-anchor="middle" fill="#6b7fa8" font-size="7" font-weight="bold">N</text>
+            <text x="28" y="52" text-anchor="middle" fill="#6b7fa8" font-size="7">S</text>
+            <text x="5" y="31" text-anchor="middle" fill="#6b7fa8" font-size="7">W</text>
+            <text x="51" y="31" text-anchor="middle" fill="#6b7fa8" font-size="7">E</text>
+            <g id="compass-needle" transform="rotate(0,28,28)">
+              <polygon points="28,6 31,28 28,34 25,28" fill="#7c3aed" opacity=".9" />
+              <polygon points="28,34 31,28 28,50 25,28" fill="#3d5278" />
+              <circle cx="28" cy="28" r="2.5" fill="#fff" opacity=".6" />
+            </g>
+          </svg>
+          <div>
+            <div><span class="det-speed-val" id="det-sog">0.0</span><span class="det-speed-unit"> knot</span></div>
+            <div class="det-cog-txt" id="det-cog-txt">COG — · HDG —</div>
+            <div class="det-cog-txt" id="det-src-txt" style="color:var(--accent);margin-top:2px"></div>
+          </div>
+        </div>
+        <div id="det-zones-row">
+          <div id="det-zones-tags" style="padding:0 0 4px"></div>
+        </div>
+        <div id="det-rows"></div>
+        <div id="det-timer"><i class="fa-regular fa-clock" style="color:var(--text2)"></i>
+          <div class="timer-bar-wrap">
+            <div id="timer-bar" style="width:100%"></div>
+          </div><span id="timer-lbl">5:00</span>
+        </div>
+        <button id="det-locate" onclick="locateSelected()"><i class="fa-solid fa-crosshairs"></i> Temukan di
+          Peta</button>
+      </div>
+
+      <!-- Coord bar -->
+      <div id="coord-bar"><span>📍</span><span id="coord-lat">Lat: —</span><span class="coord-sep">|</span><span
+          id="coord-lon">Lon: —</span><span class="coord-sep">|</span>Zoom: <span id="coord-zoom">—</span></div>
+
+      <!-- Ruler tip & clear button -->
+      <div id="ruler-tip"
+        style="display:none;position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:800;background:rgba(13,22,39,.92);border:1px solid var(--accent);border-radius:20px;padding:7px 18px;font-size:12px;color:var(--accent);align-items:center;gap:12px;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.4)">
+        <i class="fa-solid fa-ruler" style="font-size:14px"></i>
+        <span>Klik untuk tambah titik &nbsp;·&nbsp; Klik ganda untuk selesai</span>
+        <button onclick="clearMeasure(true)"
+          style="background:rgba(255,23,68,.15);border:1px solid rgba(255,23,68,.4);color:var(--red);border-radius:12px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit"><i
+            class="fa-solid fa-trash"></i> Hapus</button>
+      </div>
+
+      <!-- Geo event toasts -->
+      <div id="geo-toast"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+  SOURCES MODAL — TCP + Serial
+════════════════════════════════ -->
+  <div class="modal-overlay" id="src-modal" onclick="overlayClick(event,'src-modal')">
+    <div class="modal-box">
+      <div class="modal-hdr">
+        <i class="fa-solid fa-tower-broadcast" style="color:var(--accent);font-size:18px"></i>
+        <span class="modal-title">Manajemen Sumber NMEA</span>
+        <button class="modal-close" onclick="closeModal('src')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Left: source list -->
+        <div id="src-list-col">
+          <div id="src-list-hdr">
+            <span>Sumber Aktif</span>
+            <button class="btn-add" onclick="showSrcForm()"><i class="fa-solid fa-plus"></i> Tambah</button>
+          </div>
+          <div id="src-list-body">
+            <div class="empty-state" style="height:120px" id="src-empty">
+              <i class="fa-solid fa-tower-broadcast"></i><span>Belum ada sumber</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: form -->
+        <div id="src-form-col" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column">
+          <div id="sform-title"
+            style="font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+            <i class="fa-solid fa-plus-circle" style="color:var(--accent)"></i>
+            <span id="sform-title-txt">Tambah Sumber</span>
+          </div>
+
+          <!-- ── Type tabs ── -->
+          <div id="src-type-tabs"
+            style="display:flex;gap:0;border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-bottom:16px">
+            <button class="src-type-tab active" id="tab-tcp" onclick="setSrcType('tcp')">
+              <i class="fa-solid fa-network-wired"></i> TCP
+            </button>
+            <button class="src-type-tab" id="tab-serial" onclick="setSrcType('serial')">
+              <i class="fa-solid fa-plug"></i> Serial
+            </button>
+            <button class="src-type-tab" id="tab-aishub" onclick="setSrcType('aishub')">
+              <i class="fa-solid fa-satellite-dish"></i> AISHub
+            </button>
+          </div>
+
+          <!-- ── Common: Name ── -->
+          <div class="form-section">
+            <div class="form-section-title">Informasi</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nama Sumber *</label>
+                <input class="form-input" id="sf-name" placeholder="Feed Utama / VHF Receiver" maxlength="50" />
+              </div>
+            </div>
+          </div>
+
+          <!-- ── TCP fields ── -->
+          <div id="tcp-fields" class="form-section">
+            <div class="form-section-title"><i class="fa-solid fa-network-wired" style="color:var(--accent)"></i>
+              Koneksi TCP</div>
+            <div class="form-row">
+              <div class="form-group" style="flex:3">
+                <label>Host / IP *</label>
+                <input class="form-input" id="sf-host" placeholder="vps2.osi.my.id atau 192.168.1.100" />
+              </div>
+              <div class="form-group" style="flex:1">
+                <label>Port *</label>
+                <input class="form-input" id="sf-tcpport" type="number" min="1" max="65535" placeholder="6000" />
+              </div>
+            </div>
+            <div class="form-hint" style="margin-top:-6px">Contoh: vps2.osi.my.id:6000 · 192.168.1.1:10110 ·
+              localhost:4002</div>
+          </div>
+
+          <!-- ── Serial fields ── -->
+          <div id="serial-fields" class="form-section" style="display:none">
+            <div class="form-section-title"><i class="fa-solid fa-plug" style="color:var(--yellow)"></i> Koneksi Serial
+              / COM</div>
+
+            <!-- Port picker -->
+            <div class="form-row" style="align-items:flex-end">
+              <div class="form-group" style="flex:2">
+                <label>Port Serial *</label>
+                <input class="form-input" id="sf-serialport" placeholder="COM3 · /dev/ttyUSB0 · /dev/ttyAMA0" />
+              </div>
+              <div class="form-group" style="flex:1">
+                <button class="btn-secondary" id="btn-scan-ports" onclick="scanPorts()"
+                  style="height:38px;width:100%;font-size:11px;display:flex;align-items:center;justify-content:center;gap:5px;padding:0">
+                  <i class="fa-solid fa-magnifying-glass"></i> Scan
+                </button>
+              </div>
+            </div>
+
+            <!-- Detected ports list -->
+            <div id="ports-list" style="display:none;margin-bottom:12px">
+              <div
+                style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+                Port Terdeteksi di Server</div>
+              <div id="ports-items"></div>
+            </div>
+
+            <!-- Baud rate + params -->
+            <div class="form-row">
+              <div class="form-group">
+                <label>Baud Rate</label>
+                <select class="form-input" id="sf-baud">
+                  <option value="4800">4800 — NMEA 0183 standar</option>
+                  <option value="9600">9600</option>
+                  <option value="38400" selected>38400 — AIS receiver umum</option>
+                  <option value="57600">57600</option>
+                  <option value="115200">115200 — USB adapter</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:0 0 90px">
+                <label>Data Bits</label>
+                <select class="form-input" id="sf-databits">
+                  <option value="8" selected>8</option>
+                  <option value="7">7</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Stop Bits</label>
+                <select class="form-input" id="sf-stopbits">
+                  <option value="1" selected>1</option>
+                  <option value="2">2</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Parity</label>
+                <select class="form-input" id="sf-parity">
+                  <option value="none" selected>None</option>
+                  <option value="even">Even</option>
+                  <option value="odd">Odd</option>
+                  <option value="mark">Mark</option>
+                  <option value="space">Space</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Quick presets -->
+            <div
+              style="font-size:10px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">
+              Preset Cepat</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+              <button class="preset-btn" onclick="applyPreset(38400,8,1,'none')">🔵 AIS Receiver</button>
+              <button class="preset-btn" onclick="applyPreset(4800,8,1,'none')">🟢 NMEA 0183 Std</button>
+              <button class="preset-btn" onclick="applyPreset(115200,8,1,'none')">🟡 USB Adapter</button>
+              <button class="preset-btn" onclick="applyPreset(9600,8,1,'none')">⚪ GPS Module</button>
+            </div>
+
+            <div class="form-hint">
+              Windows: COM1, COM2, COM3… &nbsp;|&nbsp; Linux/macOS: /dev/ttyUSB0, /dev/ttyS0, /dev/cu.usbserial-*<br>
+              Klik <b>Scan</b> untuk mendeteksi port yang terhubung ke server secara otomatis.
+            </div>
+          </div>
+
+          <!-- ── AISHub fields ── -->
+          <div id="aishub-fields" class="form-section" style="display:none">
+            <div class="form-section-title"><i class="fa-solid fa-satellite-dish" style="color:var(--orange)"></i>
+              AISHub API</div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1">
+                <label>Username AISHub *</label>
+                <input class="form-input" id="sf-aishub-user" placeholder="AH_XXXX_XXXXXXXX" />
+                <div class="form-hint">Daftar di <a href="https://www.aishub.net/join-us" target="_blank"
+                    style="color:var(--accent)">aishub.net/join-us</a></div>
+              </div>
+            </div>
+            <div
+              style="font-size:10px;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">
+              Batas Area (Bounding Box)</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Lat Min (Selatan)</label>
+                <input class="form-input" id="sf-latmin" type="number" step="0.01" placeholder="-11" />
+              </div>
+              <div class="form-group">
+                <label>Lat Max (Utara)</label>
+                <input class="form-input" id="sf-latmax" type="number" step="0.01" placeholder="6" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Lon Min (Barat)</label>
+                <input class="form-input" id="sf-lonmin" type="number" step="0.01" placeholder="95" />
+              </div>
+              <div class="form-group">
+                <label>Lon Max (Timur)</label>
+                <input class="form-input" id="sf-lonmax" type="number" step="0.01" placeholder="141" />
+              </div>
+            </div>
+            <!-- Quick presets -->
+            <div
+              style="font-size:10px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">
+              Preset Area Cepat</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+              <button class="preset-btn" onclick="setAISHubArea(-11,6,95,141)">🇮🇩 Indonesia</button>
+              <button class="preset-btn" onclick="setAISHubArea(0.7,3.2,103,105)">🇸🇬 Selat Singapura</button>
+              <button class="preset-btn" onclick="setAISHubArea(-9,1,104,118)">⚓ Jawa-Bali</button>
+              <button class="preset-btn" onclick="setAISHubArea(-4,4,107,118)">🌊 Selat Makassar</button>
+            </div>
+            <!-- Interval polling -->
+            <div class="form-row" style="margin-bottom:4px">
+              <div class="form-group" style="flex:1">
+                <label>Interval Polling (detik)</label>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input class="form-input" id="sf-interval" type="number" min="70" max="3600" placeholder="70"
+                    style="width:100px;flex-shrink:0" />
+                  <input type="range" id="sf-interval-range" min="70" max="600" step="10" value="70"
+                    oninput="syncInterval(this.value)" style="flex:1;accent-color:var(--accent);cursor:pointer" />
+                  <span id="sf-interval-lbl"
+                    style="font-size:11px;color:var(--accent);font-weight:700;min-width:38px;text-align:right">70s</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+              <button class="preset-btn" onclick="setInterval_(70)">⚡ 70s (min)</button>
+              <button class="preset-btn" onclick="setInterval_(120)">🕑 2 menit</button>
+              <button class="preset-btn" onclick="setInterval_(300)">🕔 5 menit</button>
+              <button class="preset-btn" onclick="setInterval_(600)">🕙 10 menit</button>
+              <button class="preset-btn" onclick="setInterval_(1800)">🕧 30 menit</button>
+            </div>
+            <div class="form-hint">
+              ⚠️ Minimum <b>70 detik</b> sesuai rate limit AISHub — nilai lebih kecil akan otomatis diset ke 70s.<br>
+              Area lebih kecil → data lebih spesifik dan ringan.</div>
+          </div>
+
+          <!-- ── Common: Status ── -->
+          <div class="form-section">
+            <div class="form-section-title">Status</div>
+            <div class="form-toggle-row">
+              <div class="form-toggle-label"><b>Aktifkan Sumber</b><span>Koneksi dibuat otomatis saat disimpan</span>
+              </div>
+              <label class="toggle"><input type="checkbox" id="sf-enabled" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+
+          <!-- ── Email alert ── -->
+          <div class="form-section">
+            <div class="form-section-title">Notifikasi Email</div>
+            <div class="form-toggle-row">
+              <div class="form-toggle-label"><b>Alert jika sumber terputus</b><span>Kirim email ketika koneksi
+                  terputus</span></div>
+              <label class="toggle"><input type="checkbox" id="sf-alert"
+                  onchange="document.getElementById('src-alert-box').style.display=this.checked?'block':'none'" />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+            <div id="src-alert-box" style="display:none">
+              <div class="email-config-box">
+                <div id="src-smtp-status" class="email-status-row warn"><i
+                    class="fa-solid fa-circle-info"></i><span>Mengecek SMTP…</span></div>
+                <div class="form-group">
+                  <label>Email Penerima</label>
+                  <input class="form-input" id="sf-email" placeholder="admin@rsudpare.id" type="email" />
+                  <div class="form-hint">Kosongkan = pakai ALERT_TO dari .env</div>
+                </div>
+                <button class="btn-test-email" id="src-test-btn" onclick="testEmail('src')" disabled><i
+                    class="fa-solid fa-paper-plane"></i> Test Email</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- delete confirm -->
+          <div id="delete-confirm">
+            <p>⚠️ Hapus sumber ini? Koneksi akan diputus permanen.</p>
+            <div style="display:flex;gap:8px">
+              <button class="btn-danger" onclick="confirmSrcDelete()" style="flex:1">Ya, Hapus</button>
+              <button class="btn-secondary"
+                onclick="document.getElementById('delete-confirm').classList.remove('show')">Batal</button>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" onclick="showSrcForm()">Batal</button>
+            <button class="btn-danger" id="src-del-btn"
+              onclick="document.getElementById('delete-confirm').classList.add('show')" style="display:none"><i
+                class="fa-solid fa-trash"></i></button>
+            <button class="btn-primary" id="src-save-btn" onclick="saveSrc()"><i class="fa-solid fa-floppy-disk"></i>
+              Simpan</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+  GEOFENCE MODAL
+════════════════════════════════ -->
+  <div class="modal-overlay" id="geo-modal" onclick="overlayClick(event,'geo-modal')">
+    <div class="modal-box">
+      <div class="modal-hdr"><i class="fa-solid fa-draw-polygon" style="color:var(--pink);font-size:18px"></i><span
+          class="modal-title">Manajemen Geofence</span><button class="modal-close" onclick="closeModal('geo')"><i
+            class="fa-solid fa-xmark"></i></button></div>
+      <div class="modal-body">
+
+        <!-- Zone list -->
+        <div id="zone-list-col">
+          <div id="zone-list-hdr"><span>Zona Aktif</span><button class="btn-add" onclick="showZoneForm()"><i
+                class="fa-solid fa-plus"></i> Buat Zona</button></div>
+          <div id="zone-list-body">
+            <div class="empty-state" style="height:140px" id="zone-empty"><i
+                class="fa-solid fa-draw-polygon"></i><span>Belum ada geofence</span><span style="font-size:10px">Klik
+                "Buat Zona" untuk mulai</span></div>
+          </div>
+        </div>
+
+        <!-- Zone form -->
+        <div id="zone-form-col">
+          <div id="zform-title"><i class="fa-solid fa-plus-circle"></i><span id="zform-title-txt">Buat Zona Baru</span>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Informasi Zona</div>
+            <div class="form-row">
+              <div class="form-group" style="flex:2"><label>Nama Zona *</label><input class="form-input" id="zf-name"
+                  placeholder="Pelabuhan Lembar" maxlength="60" /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Keterangan</label><input class="form-input" id="zf-desc"
+                  placeholder="Deskripsi opsional" /></div>
+            </div>
+            <div class="form-group">
+              <label>Warna Zona</label>
+              <div class="color-swatches" id="color-swatches"></div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Area Polygon — Gambar di Peta</div>
+            <div id="draw-fullscreen-overlay" onclick="exitFullscreenDraw()"></div>
+            <div id="draw-map-wrap">
+              <div id="draw-map"></div>
+              <div id="draw-tip">✏️ Klik tombol Polygon atau Rectangle di kiri atas peta untuk mulai menggambar</div>
+              <button id="btn-fullscreen-draw" onclick="toggleFullscreenDraw()" title="Fullscreen / Kembali">
+                <i class="fa-solid fa-expand" id="fs-draw-icon"></i>
+              </button>
+              <button id="btn-clear-draw" onclick="clearDrawing()"><i class="fa-solid fa-trash"></i> Hapus
+                Gambar</button>
+            </div>
+            <div id="polygon-info" style="font-size:11px;color:var(--text2);margin-top:-8px;margin-bottom:8px"></div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Status & Notifikasi</div>
+            <div class="form-toggle-row">
+              <div class="form-toggle-label"><b>Aktifkan Zona</b><span>Deteksi kapal yang masuk/keluar</span></div>
+              <label class="toggle"><input type="checkbox" id="zf-enabled" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+            <div class="form-toggle-row">
+              <div class="form-toggle-label"><b>Alert saat kapal MASUK</b><span>Kirim email jika kapal memasuki
+                  zona</span></div><label class="toggle"><input type="checkbox" id="zf-enter" checked
+                  onchange="showGeoEmailBox()" />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+            <div class="form-toggle-row">
+              <div class="form-toggle-label"><b>Alert saat kapal KELUAR</b><span>Kirim email jika kapal meninggalkan
+                  zona</span></div><label class="toggle"><input type="checkbox" id="zf-exit"
+                  onchange="showGeoEmailBox()" />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+
+            <div id="geo-email-box" style="display:none">
+              <div class="email-config-box">
+                <div id="geo-smtp-status" class="email-status-row warn"><i
+                    class="fa-solid fa-circle-info"></i><span>Mengecek SMTP…</span></div>
+                <div class="form-group"><label>Email Penerima Alert</label><input class="form-input" id="zf-email"
+                    placeholder="admin@rsudpare.id" type="email" />
+                  <div class="form-hint">Kosongkan = gunakan ALERT_TO dari .env. Pisahkan dengan koma untuk beberapa
+                    email.</div>
+                </div>
+                <button class="btn-test-email" id="geo-test-btn" onclick="testEmail('geo')" disabled><i
+                    class="fa-solid fa-paper-plane"></i> Kirim Email Test</button>
+              </div>
+            </div>
+            <div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.5">Cooldown alert: kapal yang
+              sudah di-alert tidak akan di-alert ulang selama 30 menit meskipun keluar-masuk zona.<br>Konfigurasi SMTP
+              di file <code style="color:var(--accent)">.env</code>.</div>
+          </div>
+
+          <div id="zdel-confirm">
+            <p>⚠️ Hapus zona geofence ini? Semua riwayat deteksi akan hilang.</p>
+            <div style="display:flex;gap:8px"><button class="btn-danger" onclick="confirmZoneDelete()"
+                style="flex:1">Ya, Hapus</button><button class="btn-secondary"
+                onclick="document.getElementById('zdel-confirm').classList.remove('show')">Batal</button></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" onclick="showZoneForm()">Batal</button>
+            <button class="btn-danger" id="zone-del-btn"
+              onclick="document.getElementById('zdel-confirm').classList.add('show')" style="display:none"><i
+                class="fa-solid fa-trash"></i></button>
+            <button class="btn-primary" id="zone-save-btn" onclick="saveZone()"><i class="fa-solid fa-floppy-disk"></i>
+              Simpan Zona</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+  LOGIN MODAL
+════════════════════════════════ -->
+  <div class="modal-overlay" id="login-modal">
+    <div class="modal-box">
+      <div class="login-body">
+        <div class="login-logo">
+          <i class="fa-solid fa-ship"></i>
+          <h2>AIS Monitoring</h2>
+          <p>Masuk untuk mengakses panel manajemen</p>
+        </div>
+        <div id="login-error" class="login-error"></div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Username</label>
+          <input class="form-input" id="login-user" placeholder="admin" autocomplete="username"
+            onkeydown="if(event.key==='Enter')doLogin()" />
+        </div>
+        <div class="form-group" style="margin-bottom:20px">
+          <label>Password</label>
+          <div style="position:relative">
+            <input class="form-input" id="login-pass" type="password" placeholder="••••••••"
+              autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:40px" />
+            <button onclick="togglePw('login-pass',this)"
+              style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);font-size:14px;padding:2px"><i
+                class="fa-regular fa-eye"></i></button>
+          </div>
+        </div>
+        <button class="btn-primary" id="login-btn" onclick="doLogin()" style="width:100%;padding:11px 0;font-size:14px">
+          <i class="fa-solid fa-right-to-bracket"></i> Login
+        </button>
+        <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--text3)">
+          <i class="fa-solid fa-eye"></i> Live map & notifikasi dapat diakses tanpa login
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+  PROFILE MODAL
+════════════════════════════════ -->
+  <div class="modal-overlay" id="profile-modal" onclick="overlayClick(event,'profile-modal')">
+    <div class="modal-box">
+      <div class="modal-hdr">
+        <i class="fa-solid fa-user-pen" style="color:var(--accent);font-size:18px"></i>
+        <span class="modal-title">Profil Saya</span>
+        <button class="modal-close" onclick="closeModal('profile')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div style="padding:20px">
+        <!-- Info -->
+        <div
+          style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:14px;background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius)">
+          <div id="profile-avatar"
+            style="width:52px;height:52px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0">
+            A</div>
+          <div>
+            <div id="profile-name" style="font-size:16px;font-weight:700"></div>
+            <div id="profile-username" style="font-size:12px;color:var(--text2);margin-top:2px"></div>
+            <div id="profile-role-badge" style="margin-top:5px"></div>
+          </div>
+        </div>
+        <!-- Edit info -->
+        <div class="form-section">
+          <div class="form-section-title">Informasi</div>
+          <div class="form-row">
+            <div class="form-group"><label>Nama Lengkap</label><input class="form-input" id="pf-name"
+                placeholder="Nama Anda" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Email</label><input class="form-input" id="pf-email" type="email"
+                placeholder="email@rsudpare.id" /></div>
+          </div>
+          <button class="btn-primary" onclick="saveProfile()" style="width:100%;padding:9px;margin-top:4px"><i
+              class="fa-solid fa-floppy-disk"></i> Simpan Informasi</button>
+        </div>
+        <!-- Change password -->
+        <div class="form-section" style="margin-top:16px">
+          <div class="form-section-title">Ubah Password</div>
+          <div class="form-row">
+            <div class="form-group"><label>Password Lama</label><input class="form-input" id="pf-oldpass"
+                type="password" placeholder="••••••••" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Password Baru</label><input class="form-input" id="pf-newpass"
+                type="password" placeholder="Min. 6 karakter" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Konfirmasi Password Baru</label><input class="form-input" id="pf-confirm"
+                type="password" placeholder="Ulangi password baru" /></div>
+          </div>
+          <button class="btn-primary" onclick="changePassword()"
+            style="width:100%;padding:9px;margin-top:4px;background:rgba(255,23,68,.15);border:1px solid rgba(255,23,68,.3);color:var(--red)"><i
+              class="fa-solid fa-lock"></i> Ubah Password</button>
+          <div style="font-size:10px;color:var(--text3);margin-top:6px">Setelah mengubah password, Anda akan diminta
+            login kembali.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════
+  USERS MODAL (admin only)
+════════════════════════════════ -->
+  <div class="modal-overlay" id="users-modal" onclick="overlayClick(event,'users-modal')">
+    <div class="modal-box">
+      <div class="modal-hdr">
+        <i class="fa-solid fa-users-gear" style="color:var(--accent);font-size:18px"></i>
+        <span class="modal-title">Manajemen User</span>
+        <button class="modal-close" onclick="closeModal('users')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <!-- User list -->
+        <div id="user-list-col"
+          style="width:300px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden">
+          <div
+            style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:10.5px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">
+            <span>Daftar User</span>
+            <button class="btn-add" onclick="showUserForm()"><i class="fa-solid fa-plus"></i> Tambah</button>
+          </div>
+          <div id="user-list-body" style="flex:1;overflow-y:auto;padding:8px">
+            <div class="empty-state" style="height:120px" id="user-empty"><i
+                class="fa-solid fa-users"></i><span>Memuat…</span></div>
+          </div>
+        </div>
+        <!-- User form -->
+        <div id="user-form-col" style="flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column">
+          <div id="uform-title"
+            style="font-size:14px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+            <i class="fa-solid fa-user-plus" style="color:var(--accent)"></i>
+            <span id="uform-title-txt">Tambah User</span>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title">Informasi User</div>
+            <div class="form-row">
+              <div class="form-group"><label>Username *</label><input class="form-input" id="uf-username"
+                  placeholder="johndoe" maxlength="30" /></div>
+              <div class="form-group"><label>Nama Lengkap</label><input class="form-input" id="uf-name"
+                  placeholder="John Doe" /></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label>Email</label><input class="form-input" id="uf-email" type="email"
+                  placeholder="john@rsudpare.id" /></div>
+              <div class="form-group">
+                <label>Role</label>
+                <select class="form-input" id="uf-role">
+                  <option value="viewer">Viewer — hanya lihat peta</option>
+                  <option value="operator">Operator — kelola sumber & geofence</option>
+                  <option value="admin">Admin — akses penuh</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title">Password</div>
+            <div class="form-row">
+              <div class="form-group"><label id="uf-pass-label">Password *</label><input class="form-input" id="uf-pass"
+                  type="password" placeholder="Min. 6 karakter" /></div>
+              <div class="form-group"><label>Konfirmasi</label><input class="form-input" id="uf-pass2" type="password"
+                  placeholder="Ulangi password" /></div>
+            </div>
+            <div class="form-hint">Kosongkan jika tidak ingin mengubah password (saat edit)</div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title">Status</div>
+            <div class="form-toggle-row">
+              <div class="form-toggle-label"><b>Akun Aktif</b><span>User dapat login ke sistem</span></div>
+              <label class="toggle"><input type="checkbox" id="uf-active" checked />
+                <div class="toggle-track"></div>
+                <div class="toggle-thumb"></div>
+              </label>
+            </div>
+          </div>
+          <div id="udel-confirm"
+            style="display:none;background:rgba(255,23,68,.06);border:1px solid rgba(255,23,68,.25);border-radius:var(--radius);padding:12px;margin-bottom:10px">
+            <p style="font-size:12px;margin-bottom:10px">⚠️ Hapus user ini? Tindakan tidak dapat dibatalkan.</p>
+            <div style="display:flex;gap:8px"><button class="btn-danger" onclick="confirmUserDelete()"
+                style="flex:1">Ya, Hapus</button><button class="btn-secondary"
+                onclick="document.getElementById('udel-confirm').style.display='none'">Batal</button></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-secondary" onclick="showUserForm()">Batal</button>
+            <button class="btn-danger" id="user-del-btn"
+              onclick="document.getElementById('udel-confirm').style.display='block'" style="display:none"><i
+                class="fa-solid fa-trash"></i></button>
+            <button class="btn-primary" id="user-save-btn" onclick="saveUser()"><i class="fa-solid fa-floppy-disk"></i>
+              Simpan</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Restore panels button — visible only in full-map mode -->
+  <button id="restore-btn" onclick="toggleFullMap()" title="Tampilkan kembali panel">
+    <i class="fa-solid fa-sidebar"></i> Tampilkan Panel
+  </button>
+
+  <div id="toast"></div>
+
+  <!-- ══ SCRIPTS ══ -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+  <script src="/lib/msgpackr.min.js"></script>
+  <script>
+    'use strict';
+    // Auto-detect ws:// vs wss:// based on page protocol (critical for HTTPS/Caddy)
+    const WS_PROTO = location.protocol === 'https:' ? 'wss' : 'ws';
+    const WS_URL = `${WS_PROTO}://${location.host}`;
+    const TIMEOUT_MS = 5 * 60_000;
+    const ZONE_COLORS = ['#ff1744', '#ff9100', '#ffd740', '#00e676', '#00c8ff', '#b39ddb', '#ff6eb0', '#80d8ff'];
+
+    // ── STATE ──
+    const ships = {}, markers = {}, trails = {}, zoneLayers = {};
+    let sources = [], zones = [], selectedMMSI = null, countdownTmr = null;
+    let filterClass = 'all', sortKey = 'lastSeen', searchQuery = '';
+    let showClassA = true, showClassB = true, showAton = true, showBase = true, showSAR = true, showLongRange = true;
+    let showTrail = true, showGeo = true;
+    let srcEditId = null, zoneEditId = null;
+    let drawnPolygon = null, drawMap = null, drawControl = null, drawnItems = null;
+    let selectedColor = ZONE_COLORS[0];
+
+    // ── MAP ────────────────────────────────────────
+    const TILES = {
+      enc: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri Ocean', maxZoom: 18 }),
+      satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri Imagery', maxZoom: 18 }),
+      osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM', maxZoom: 19 }),
+      dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© CARTO', maxZoom: 19 }),
+    };
+    const OVERLAYS = {
+      seamarks: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { attribution: '© OpenSeaMap', opacity: .85, maxZoom: 19 }),
+      bathymetry: L.tileLayer('https://tiles.gebco.net/tiles/gebco_latest/{z}/{x}/{y}.png', { attribution: '© GEBCO', opacity: .45, maxZoom: 14 }),
+      oceanref: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri Ocean Ref', opacity: .8, maxZoom: 18 }),
+    };
+
+    // Fetch map config synchronously so map init has correct center/zoom
+    const _cfg = (() => {
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/config', false); // synchronous
+        xhr.send();
+        return JSON.parse(xhr.responseText);
+      } catch { return { mapCenter: [-5.5, 113], mapZoom: 6 }; }
+    })();
+    const map = L.map('map', { center: _cfg.mapCenter, zoom: _cfg.mapZoom, zoomControl: false });
+    // Zoom control di bawah, terpisah dari panel Chart
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+    // ── PENGUKUR JARAK — Custom Implementation ─────────
+    // Haversine formula untuk jarak geodesik
+    function haversineNM(lat1, lon1, lat2, lon2) {
+      const R = 3440.065; // Nautical miles
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+    function nmToKm(nm) { return nm * 1.852; }
+    function nmToM(nm) { return nm * 1852; }
+    function formatDist(nm) {
+      if (nm < 0.1) return `${Math.round(nmToM(nm))} m`;
+      if (nm < 10) return `${nm.toFixed(2)} NM  (${nmToKm(nm).toFixed(2)} km)`;
+      return `${nm.toFixed(1)} NM  (${nmToKm(nm).toFixed(1)} km)`;
+    }
+
+    let _measuring = false;
+    let _measurePts = [];   // [{lat,lng}]
+    let _measureLines = [];   // L.Polyline[]
+    let _measureMarks = [];   // L.CircleMarker[]
+    let _measureLabels = [];   // L.Marker[] (distance labels)
+    let _measureTotal = 0;    // total NM
+
+    const MCOLOR = '#7c3aed';
+    const MCOLOR2 = '#00e676';
+
+    function startMeasure() {
+      _measuring = true;
+      _measurePts = [];
+      clearMeasure(false);
+      document.getElementById('ruler-btn').classList.add('active');
+      document.getElementById('ruler-tip').style.display = 'flex';
+      map.getContainer().style.cursor = 'crosshair';
+      map.on('click', onMeasureClick);
+      map.on('dblclick', onMeasureDblClick);
+    }
+
+    function stopMeasure() {
+      _measuring = false;
+      map.off('click', onMeasureClick);
+      map.off('dblclick', onMeasureDblClick);
+      map.getContainer().style.cursor = '';
+      document.getElementById('ruler-btn').classList.remove('active');
+      document.getElementById('ruler-tip').style.display = 'none';
+    }
+
+    function clearMeasure(stopToo = true) {
+      _measureLines.forEach(l => map.removeLayer(l));
+      _measureMarks.forEach(m => map.removeLayer(m));
+      _measureLabels.forEach(m => map.removeLayer(m));
+      _measureLines = []; _measureMarks = []; _measureLabels = [];
+      _measureTotal = 0;
+      if (stopToo) stopMeasure();
+    }
+
+    function toggleMeasure() {
+      if (_measuring) { clearMeasure(true); }
+      else { startMeasure(); }
+    }
+
+    function onMeasureClick(e) {
+      if (!_measuring) return;
+      const pt = { lat: e.latlng.lat, lng: e.latlng.lng };
+      _measurePts.push(pt);
+
+      // Draw dot
+      const dot = L.circleMarker([pt.lat, pt.lng], {
+        radius: 5, color: MCOLOR, fillColor: MCOLOR, fillOpacity: 1, weight: 2,
+        pane: 'markerPane'
+      }).addTo(map);
+      _measureMarks.push(dot);
+
+      if (_measurePts.length > 1) {
+        const prev = _measurePts[_measurePts.length - 2];
+        const segNM = haversineNM(prev.lat, prev.lng, pt.lat, pt.lng);
+        _measureTotal += segNM;
+
+        // Draw segment line
+        const line = L.polyline([[prev.lat, prev.lng], [pt.lat, pt.lng]], {
+          color: MCOLOR, weight: 2.5, opacity: .85, dashArray: '6,4'
+        }).addTo(map);
+        _measureLines.push(line);
+
+        // Segment distance label — midpoint
+        const midLat = (prev.lat + pt.lat) / 2;
+        const midLng = (prev.lng + pt.lng) / 2;
+        const segLabel = L.marker([midLat, midLng], {
+          icon: L.divIcon({
+            className: '',
+            html: `<div style="background:rgba(13,22,39,.88);border:1px solid ${MCOLOR};color:${MCOLOR};padding:2px 8px;border-radius:4px;font-size:10.5px;white-space:nowrap;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.5)">${formatDist(segNM)}</div>`,
+            iconAnchor: [0, 0],
+          }),
+          interactive: false,
+          pane: 'tooltipPane',
+        }).addTo(map);
+        _measureLabels.push(segLabel);
+
+        // Total label on last point
+        if (_measureLabels.length > 1) map.removeLayer(_measureLabels[_measureLabels.length - 2]); // remove prev total if existed indirectly
+        const totalLabel = L.marker([pt.lat, pt.lng], {
+          icon: L.divIcon({
+            className: '',
+            html: `<div style="background:rgba(13,22,39,.92);border:1px solid ${MCOLOR2};color:${MCOLOR2};padding:3px 10px;border-radius:5px;font-size:11.5px;white-space:nowrap;font-weight:700;margin-top:16px;box-shadow:0 2px 10px rgba(0,0,0,.6)">Total: ${formatDist(_measureTotal)}</div>`,
+            iconAnchor: [-6, -6],
+          }),
+          interactive: false,
+          pane: 'tooltipPane',
+        }).addTo(map);
+        _measureLabels.push(totalLabel);
+      }
+    }
+
+    function onMeasureDblClick(e) {
+      L.DomEvent.stop(e);
+      // Remove last duplicate click added by the dblclick
+      if (_measurePts.length > 1) {
+        const last = _measurePts[_measurePts.length - 1];
+        const prev = _measurePts[_measurePts.length - 2];
+        // If last two points are very close (dblclick), remove the last
+        if (haversineNM(last.lat, last.lng, prev.lat, prev.lng) < 0.01) {
+          _measurePts.pop();
+          if (_measureMarks.length) { map.removeLayer(_measureMarks.pop()); }
+          if (_measureLines.length) { map.removeLayer(_measureLines.pop()); }
+        }
+      }
+      stopMeasure();
+      if (_measurePts.length < 2) clearMeasure(false);
+    }
+    let activeBase = TILES.osm;
+    activeBase.addTo(map); OVERLAYS.seamarks.addTo(map);
+    L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
+
+    map.on('mousemove', e => { document.getElementById('coord-lat').textContent = `Lat: ${dms(e.latlng.lat, 'NS')}`; document.getElementById('coord-lon').textContent = `Lon: ${dms(e.latlng.lng, 'EW')}`; });
+    map.on('zoomend', () => document.getElementById('coord-zoom').textContent = map.getZoom());
+    document.getElementById('coord-zoom').textContent = map.getZoom();
+
+    function dms(deg, axis) { const s = deg < 0 ? -1 : 1, a = Math.abs(deg), d = Math.floor(a), m = Math.floor((a - d) * 60), sec = ((a - d - m / 60) * 3600).toFixed(1); return `${d}°${m}'${sec}"${axis === 'NS' ? (s > 0 ? 'N' : 'S') : (s > 0 ? 'E' : 'W')}`; }
+
+    function switchChart(n, el) { document.querySelectorAll('.chart-option').forEach(o => o.classList.remove('active')); el.classList.add('active'); if (activeBase) map.removeLayer(activeBase); activeBase = TILES[n]; activeBase.addTo(map); activeBase.bringToBack(); Object.values(OVERLAYS).forEach(l => { if (map.hasLayer(l)) l.bringToFront(); }); renderZoneLayers(); }
+    function toggleOverlay(n, on) { const l = OVERLAYS[n]; if (!l) return; if (on) { l.addTo(map); l.bringToFront(); } else map.removeLayer(l); }
+    function toggleGeoOverlay(on) { showGeo = on; Object.values(zoneLayers).forEach(l => { if (on) l.addTo(map); else map.removeLayer(l); }); }
+
+    // ── ZONE LAYERS ──────────────────────────────────
+    function renderZoneLayers() {
+      Object.values(zoneLayers).forEach(l => map.removeLayer(l));
+      Object.keys(zoneLayers).forEach(k => delete zoneLayers[k]);
+      for (const z of zones) {
+        if (!z.polygon || z.polygon.length < 3) continue;
+        const latlngs = z.polygon.map(p => [p[0], p[1]]);
+        const poly = L.polygon(latlngs, {
+          color: z.color || '#ff1744', weight: z.enabled ? 2 : 1,
+          opacity: z.enabled ? .85 : .4,
+          fillColor: z.color || '#ff1744',
+          fillOpacity: z.enabled ? .13 : .05,
+          dashArray: z.enabled ? null : '6,4',
+        });
+        poly.bindTooltip(`<b>${esc(z.name)}</b>${z.shipCount ? `<br>🚢 ${z.shipCount} kapal` : ''}`, { sticky: true, className: 'leaflet-tooltip', direction: 'center' });
+        poly.on('click', () => { openModal('geo'); setTimeout(() => editZone(z.id), 100); });
+        if (showGeo) poly.addTo(map);
+        zoneLayers[z.id] = poly;
+      }
+    }
+
+    function highlightZone(id) {
+      const l = zoneLayers[id]; if (!l) return;
+      map.fitBounds(l.getBounds().pad(.2));
+    }
+
+    // ── SHIP COLORS ──────────────────────────────────
+    function shipColor(s) {
+      if (s.isBaseStation) return '#e91e63';
+      if (s.isAircraft) return '#ef4444';
+      if (s.isAton) return '#f97316';
+      return s.classB ? '#10b981' : '#3b82f6';
+    }
+    function shipEmoji(s) {
+      if (s.isBaseStation) return '📡';
+      if (s.isAircraft) return '✈️';
+      if (s.isAton) return '🔴';
+      return s.classB ? '⛵' : '🚢';
+    }
+
+    // Icon cache: avoid re-creating identical SVG strings
+    const _iconCache = new Map();
+    function makeIcon(ship) {
+      const color = shipColor(ship), sel = ship.mmsi === selectedMMSI;
+      const isBase = ship.isBaseStation, isAir = ship.isAircraft, isAton = ship.isAton;
+      const heading = isBase || isAton ? 0 : Math.round(ship.heading ?? ship.cog ?? 0);
+      const label = ship.name || ship.mmsi || '';
+      const shape = isBase ? 'b' : isAir ? 'a' : isAton ? 'n' : 's';
+      const sig = `${color}|${heading}|${sel}|${shape}|${label.slice(0, 12)}`;
+      if (_iconCache.has(sig)) return _iconCache.get(sig);
+      const size = sel ? 26 : 20, fill = 'rgba(255,255,255,.35)', hue = color;
+      const labelHtml = label ? `<div class="ship-label">${label}</div>` : '';
+      let svg;
+      if (isBase) {
+        svg = `<svg width="${size}" height="${size * 1.25}" viewBox="0 0 28 35" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;overflow:visible"><rect x="9" y="18" width="10" height="10" rx="2" fill="${fill}" stroke="${hue}" stroke-width="1.2"/><rect x="12.5" y="4" width="3" height="14" rx="1" fill="${hue}" opacity=".7"/><rect x="7" y="8" width="14" height="2" rx=".5" fill="${hue}" opacity=".5"/><rect x="8" y="13" width="12" height="2" rx=".5" fill="${hue}" opacity=".4"/><path d="M4,5 A13,13 0 0,1 24,5" stroke="${hue}" stroke-width="1.8" fill="none" opacity=".5"/><path d="M2,10 A16,16 0 0,1 26,10" stroke="${hue}" stroke-width="1.5" fill="none" opacity=".3"/></svg>`;
+      } else if (isAir) {
+        svg = `<svg width="${size}" height="${size * 1.25}" viewBox="0 0 28 35" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;overflow:visible;transform:rotate(${heading}deg);transform-origin:14px 17px;transition:transform .9s ease"><ellipse cx="14" cy="18" rx="5" ry="10" fill="${fill}" stroke="${hue}" stroke-width="1.5"/><path d="M2,14 L10,17 L10,20 Z" fill="${hue}" opacity=".6"/><path d="M26,14 L18,17 L18,20 Z" fill="${hue}" opacity=".6"/><rect x="11.5" y="5" width="5" height="6" rx="1.5" fill="${hue}" opacity=".5"/></svg>`;
+      } else if (isAton) {
+        svg = `<svg width="${size}" height="${size * 1.25}" viewBox="0 0 28 35" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;overflow:visible"><circle cx="14" cy="18" r="10" fill="${fill}" stroke="${hue}" stroke-width="2"/><circle cx="14" cy="18" r="3" fill="${hue}" opacity=".6"/><rect x="13" y="3" width="2" height="10" rx="1" fill="${hue}" opacity=".5"/><rect x="9" y="28" width="10" height="4" rx="1.5" fill="${hue}" opacity=".3"/></svg>`;
+      } else {
+        const wake = `<path d="M7,32 L2,39 M14,34 L14,40 M21,32 L26,39" stroke="rgba(255,255,255,.12)" stroke-width="1.5" fill="none"/>`;
+        svg = `<svg width="${size}" height="${size * 1.25}" viewBox="0 0 28 35" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;overflow:visible;transform:rotate(${heading}deg);transform-origin:14px 17px;transition:transform .9s ease">${wake}<path d="M14,1 C14,1 23,10 23,18 L23,26 C23,30 20,33 14,33 C8,33 5,30 5,26 L5,18 C5,10 14,1 14,1Z" fill="${fill}" stroke="${hue}" stroke-width="1.6" stroke-linejoin="round"/><rect x="8" y="13" width="12" height="7" rx="1" fill="${hue}" fill-opacity=".35" stroke="${hue}" stroke-width="1"/><rect x="10" y="10" width="8" height="4" rx="1" fill="${hue}" fill-opacity=".2" stroke="${hue}" stroke-width=".8"/><rect x="12" y="5" width="4" height="6" rx=".8" fill="${hue}" fill-opacity=".4" stroke="${hue}" stroke-width=".8"/><circle cx="7.5" cy="21" r="1.4" fill="#f87171" opacity=".9"/><circle cx="20.5" cy="21" r="1.4" fill="#4ade80" opacity=".9"/></svg>`;
+      }
+      const icon = L.divIcon({ html: `<div class="ship-pin" style="width:${size}px;height:${size * 1.25}px">${svg}${labelHtml}</div>`, className: '', iconSize: [size + 4, size * 1.25 + 14], iconAnchor: [(size + 4) / 2, (size * 1.25 + 14) / 2] });
+      if (_iconCache.size > 1000) _iconCache.clear();
+      _iconCache.set(sig, icon);
+      return icon;
+    }
+
+    // ── MARKERS ───────────────────────────────────────
+    function addOrUpdateMarker(ship) {
+      if (ship.lat == null || ship.lon == null || isNaN(ship.lat) || isNaN(ship.lon)) return;
+      if (!isShipVisible(ship)) return;
+      const ll = [ship.lat, ship.lon];
+      if (markers[ship.mmsi]) { markers[ship.mmsi].setLatLng(ll); markers[ship.mmsi].setIcon(makeIcon(ship)); }
+      else { const m = L.marker(ll, { icon: makeIcon(ship), title: ship.name || ship.mmsi }); m.on('click', () => selectShip(ship.mmsi)); m.addTo(map); markers[ship.mmsi] = m; }
+      updateTrail(ship);
+    }
+    function removeMarker(mmsi) { if (markers[mmsi]) { map.removeLayer(markers[mmsi]); delete markers[mmsi]; } if (trails[mmsi]) { map.removeLayer(trails[mmsi]); delete trails[mmsi]; } }
+    // Trail: throttle updates to max once/3s per ship, skip tiny movements
+    const _trailTs = new Map();
+    function updateTrail(ship) {
+      if (!showTrail || !ship.lat) return;
+      const now = Date.now();
+      if (trails[ship.mmsi] && now - (_trailTs.get(ship.mmsi) || 0) < 3000) return;
+      _trailTs.set(ship.mmsi, now);
+      const pts = (ship.trail || []).map(p => [p.lat, p.lon]);
+      if (!pts.length) return;
+      pts.push([ship.lat, ship.lon]);
+      const color = shipColor(ship);
+      if (trails[ship.mmsi]) trails[ship.mmsi].setLatLngs(pts);
+      else trails[ship.mmsi] = L.polyline(pts, { color, weight: 1.5, opacity: .5, dashArray: '4,5' }).addTo(map);
+    }
+    function toggleTrail() { showTrail = !showTrail; document.getElementById('trail-btn').classList.toggle('active', showTrail); document.getElementById('ov-trail').checked = showTrail; if (showTrail) Object.values(ships).forEach(updateTrail); else { Object.values(trails).forEach(pl => map.removeLayer(pl)); Object.keys(trails).forEach(k => delete trails[k]); } }
+
+    // ── FULL MAP MODE ─────────────────────────────────
+    let _fullMap = false;
+    function toggleFullMap() {
+      _fullMap = !_fullMap;
+      ['sidebar', 'chart-panel', 'overlay-panel', 'legend', 'detail', 'topbar', 'coord-bar'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle('hidden', _fullMap);
+      });
+      document.getElementById('fullmap-btn').classList.toggle('active', _fullMap);
+      document.getElementById('restore-btn').classList.toggle('show', _fullMap);
+      // Let sidebar CSS transition finish (300ms) then fix map tile gaps
+      setTimeout(() => map.invalidateSize({ animate: false }), 320);
+      toast(_fullMap ? 'Full Map — klik "Tampilkan Panel" untuk kembali' : 'Panel ditampilkan kembali');
+    }
+    // Only refresh the previously-selected + newly-selected marker (not all)
+    let _prevSelectedMMSI = null;
+    function refreshIcons() {
+      // Refresh old selected (deselect) + new selected — O(2) instead of O(n)
+      const toRefresh = new Set([_prevSelectedMMSI, selectedMMSI].filter(Boolean));
+      for (const mmsi of toRefresh) {
+        const ship = ships[mmsi]; if (ship && markers[mmsi]) markers[mmsi].setIcon(makeIcon(ship));
+      }
+      _prevSelectedMMSI = selectedMMSI;
+    }
+
+    // ── SHIP DATA ─────────────────────────────────────
+    // Throttle sidebar re-render: max once per 500ms regardless of update rate
+    let _sidebarTimer = null;
+    function scheduleSidebar() {
+      if (_sidebarTimer) return;
+      _sidebarTimer = setTimeout(() => { _sidebarTimer = null; renderSidebar(); }, 500);
+    }
+
+    // Expand short-key init snapshot — has ALL fields
+    function expandInit(d) {
+      // d = {m,a,o,s,c,h,n,t,r,cb,at,nm,tp,al,bs,ac,lr,ct}
+      return { mmsi: d.m, lat: d.a, lon: d.o, sog: d.s, cog: d.c, heading: d.h, navStatus: d.n, lastSeen: d.t, lastSource: d.r, classB: !!d.cb, isAton: !!d.at, name: d.nm, shipType: d.tp, altitude: d.al, isBaseStation: !!d.bs, isAircraft: !!d.ac, isLongRange: !!d.lr, category: d.ct };
+    }
+
+    // Expand short-key position delta — only fields present in position updates
+    function expandPos(d) {
+      // d = {m,a,o,s,c,h,n,t,r,al,bs,ac,lr}
+      // NOTE: cb,at,nm,tp,ct only in init/static, NOT in position deltas
+      return { mmsi: d.m, lat: d.a, lon: d.o, sog: d.s, cog: d.c, heading: d.h, navStatus: d.n, lastSeen: d.t, lastSource: d.r, altitude: d.al, isBaseStation: !!d.bs, isAircraft: !!d.ac, isLongRange: !!d.lr };
+    }
+    function expandStatic(d) {
+      // d = {m,nm,tp,cs,im,dt,dr,ln,bm,cb,at,ct}
+      return { mmsi: d.m, name: d.nm, shipType: d.tp, callsign: d.cs, imo: d.im, destination: d.dt, draught: d.dr, length: d.ln, beam: d.bm, classB: !!d.cb, isAton: !!d.at, category: d.ct };
+    }
+
+    function handlePos(posList) {
+      for (const d of posList) {
+        const pos = expandPos(d);
+        const existing = ships[pos.mmsi] || {};
+        // Only overwrite fields that are present in position delta
+        for (const [k, v] of Object.entries(pos)) {
+          if (v !== undefined) existing[k] = v;
+        }
+        ships[pos.mmsi] = existing;
+        addOrUpdateMarker(ships[pos.mmsi]);
+        if (pos.mmsi === selectedMMSI) renderDetail(pos.mmsi);
+      }
+      scheduleSidebar();
+    }
+
+    function handleStatic(staticList) {
+      for (const d of staticList) {
+        const s = expandStatic(d);
+        if (ships[s.mmsi]) {
+          for (const [k, v] of Object.entries(s)) {
+            if (v != null) ships[s.mmsi][k] = v;
+          }
+        }
+      }
+      scheduleSidebar();
+    }
+
+    function handleUpdate(ship) {
+      ships[ship.mmsi] = { ...(ships[ship.mmsi] || {}), ...ship };
+      addOrUpdateMarker(ships[ship.mmsi]);
+      scheduleSidebar();
+      if (ship.mmsi === selectedMMSI) renderDetail(ship.mmsi);
+    }
+
+    function handleRemove(mmsis) { for (const mmsi of mmsis) { delete ships[mmsi]; removeMarker(mmsi); if (mmsi === selectedMMSI) closeDetail(); } renderSidebar(); }
+    setInterval(() => { const now = Date.now(); const exp = Object.keys(ships).filter(m => now - (ships[m].lastSeen || 0) > TIMEOUT_MS); if (exp.length) handleRemove(exp); }, 20_000);
+
+    // ── SIDEBAR — Virtual Scroll (handles 1500+ ships) ───
+    // Only render ITEM_H*VISIBLE_COUNT items, recalculate on scroll
+    const ITEM_H = 54;   // px per sidebar item (must match CSS)
+    const VPAD = 4;    // px padding in #vscroll-items
+    let _vAllItems = []; // sorted/filtered ship array (all)
+    let _vStart = 0;  // first visible index
+    const _sidebarState = new Map(); // dirty-check cache
+
+    function scheduleSidebarScroll() {
+      renderVirtualSidebar();
+    }
+
+    // Main sort+filter → update _vAllItems
+    function buildSidebarItems() {
+      let items = Object.values(ships);
+      if (filterClass === 'classA') items = items.filter(s => !s.classB);
+      else if (filterClass === 'classB') items = items.filter(s => s.classB);
+      // Hide/unhide per type
+      items = items.filter(s => {
+        if (s.classB && !showClassB) return false;
+        if (!s.classB && !showClassA) return false;
+        if (s.isAton && !showAton) return false;
+        if (s.isBaseStation && !showBase) return false;
+        if (s.isAircraft && !showSAR) return false;
+        if (s.isLongRange && !showLongRange) return false;
+        return true;
+      });
+      if (searchQuery) { const q = searchQuery.toLowerCase(); items = items.filter(s => String(s.mmsi).includes(q) || (s.name && s.name.toLowerCase().includes(q))); }
+      items.sort((a, b) => sortKey === 'lastSeen' ? (b.lastSeen || 0) - (a.lastSeen || 0) : sortKey === 'name' ? (a.name || a.mmsi).localeCompare(b.name || b.mmsi) : (b.sog || 0) - (a.sog || 0));
+      _vAllItems = items;
+      return items;
+    }
+
+    function renderSidebar() {
+      buildSidebarItems();
+      renderVirtualSidebar();
+      // Update counts
+      const total = Object.keys(ships).length;
+      const badge = document.getElementById('count-badge');
+      if (badge.textContent !== String(total)) badge.textContent = total;
+      const ssEl = document.getElementById('s-ships');
+      if (ssEl && ssEl.textContent !== String(total)) ssEl.textContent = total;
+    }
+
+    function renderVirtualSidebar() {
+      const listEl = document.getElementById('ship-list');
+      const emptyEl = document.getElementById('empty');
+      const itemsEl = document.getElementById('vscroll-items');
+      const topSp = document.getElementById('vscroll-spacer-top');
+      const botSp = document.getElementById('vscroll-spacer-bot');
+
+      if (!_vAllItems.length) {
+        emptyEl.style.display = 'flex'; itemsEl.innerHTML = '';
+        topSp.style.height = '0'; botSp.style.height = '0';
+        return;
+      }
+      emptyEl.style.display = 'none';
+
+      const scrollTop = listEl.scrollTop;
+      const viewH = listEl.clientHeight || 400;
+      const startIdx = Math.max(0, Math.floor(scrollTop / ITEM_H) - 3);
+      const endIdx = Math.min(_vAllItems.length, startIdx + Math.ceil(viewH / ITEM_H) + 6);
+
+      topSp.style.height = (startIdx * ITEM_H) + 'px';
+      botSp.style.height = ((_vAllItems.length - endIdx) * ITEM_H) + 'px';
+
+      // Build only visible slice
+      const visible = _vAllItems.slice(startIdx, endIdx);
+      const seen = new Set(visible.map(s => s.mmsi));
+      // Remove rows no longer visible
+      itemsEl.querySelectorAll('.si').forEach(el => { if (!seen.has(el.dataset.mmsi)) { _sidebarState.delete(el.dataset.mmsi); el.remove(); } });
+
+      for (const ship of visible) {
+        const color = shipColor(ship);
+        const name = ship.name || `MMSI ${ship.mmsi}`;
+        const sog = ship.sog != null ? `${ship.sog.toFixed(1)} kn` : '—';
+        const type = ship.isBaseStation ? 'Base Station' : ship.isAircraft ? 'SAR' : ship.isAton ? 'AtoN' : ship.classB ? 'Class B' : 'Class A';
+        const sel = ship.mmsi === selectedMMSI;
+        const inZones = zones.filter(z => z.shipsInside?.includes(ship.mmsi));
+        const sig = `${name}|${sog}|${type}|${sel}|${inZones.length}|${color}`;
+
+        let el = itemsEl.querySelector(`.si[data-mmsi="${ship.mmsi}"]`);
+        if (!el) {
+          el = document.createElement('div');
+          el.className = 'si'; el.dataset.mmsi = ship.mmsi;
+          el.style.height = ITEM_H + 'px';
+          el.onclick = () => selectShip(ship.mmsi);
+          itemsEl.appendChild(el);
+        }
+        if (_sidebarState.get(ship.mmsi) === sig) continue;
+        _sidebarState.set(ship.mmsi, sig);
+        el.className = 'si' + (sel ? ' sel' : '');
+        const geoDots = inZones.map(z => `<div class="si-geo-dot" style="background:${z.color || '#ff1744'};display:block" title="${esc(z.name)}"></div>`).join('');
+        el.innerHTML = `<div class="si-ic" style="background:${color}18;color:${color}"><i class="fa-solid fa-ship"></i></div><div class="si-body"><div class="si-name" title="${esc(name)}">${esc(name)}</div><div class="si-meta">${ship.mmsi} · ${esc(type)}</div></div><div class="si-right"><div class="si-sog">${sog}</div><div style="display:flex;align-items:center;gap:2px">${geoDots}<div class="si-focus" title="Fokus ke peta" onclick="event.stopPropagation();locateShip('${ship.mmsi}')"><i class="fa-solid fa-location-crosshairs"></i></div></div></div>`;
+      }
+    }
+
+    // Attach scroll listener for virtual scroll
+    document.addEventListener('DOMContentLoaded', () => {
+      const listEl = document.getElementById('ship-list');
+      if (listEl) listEl.addEventListener('scroll', () => renderVirtualSidebar(), { passive: true });
+    });
+
+    function selectShip(mmsi) { selectedMMSI = mmsi; renderSidebar(); refreshIcons(); renderDetail(mmsi); const el = document.querySelector(`.si[data-mmsi="${mmsi}"]`); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+
+    function renderDetail(mmsi) {
+      const ship = ships[mmsi]; if (!ship) return;
+      document.getElementById('detail').classList.add('vis');
+      document.getElementById('det-emoji').textContent = shipEmoji(ship);
+      document.getElementById('det-name').textContent = ship.name || `MMSI ${ship.mmsi}`;
+      const cls = ship.isBaseStation ? 'Base Station' : ship.isAircraft ? 'SAR Aircraft' : ship.isAton ? 'AtoN' : ship.classB ? 'Class B' : 'Class A';
+      document.getElementById('det-class').textContent = cls;
+      document.getElementById('compass-needle').setAttribute('transform', `rotate(0,28,28)`);
+      if (ship.isBaseStation || ship.isAton) {
+        document.getElementById('det-sog').textContent = '—';
+        document.getElementById('det-cog-txt').textContent = ship.isBaseStation ? 'Base Station · Stasioner' : 'AtoN · Navigasi';
+      } else {
+        const hdg = ship.heading ?? ship.cog ?? 0;
+        document.getElementById('compass-needle').setAttribute('transform', `rotate(${hdg},28,28)`);
+        document.getElementById('det-sog').textContent = ship.sog != null ? ship.sog.toFixed(1) : '—';
+        document.getElementById('det-cog-txt').textContent = `COG: ${ship.cog != null ? ship.cog.toFixed(1) + '°' : '—'} · HDG: ${ship.heading != null ? ship.heading + '°' : '—'}`;
+      }
+      document.getElementById('det-src-txt').textContent = ship.lastSource ? `📡 ${ship.lastSource}` : '';
+
+      // Geofence zone tags
+      const inZones = zones.filter(z => z.shipsInside?.includes(mmsi));
+      const zonesRow = document.getElementById('det-zones-row');
+      if (inZones.length) {
+        zonesRow.classList.add('vis');
+        document.getElementById('det-zones-tags').innerHTML =
+          inZones.map(z => `<span class="det-zone-tag" style="background:${z.color}18;color:${z.color};border-color:${z.color}44"><i class="fa-solid fa-circle" style="font-size:7px"></i>${esc(z.name)}</span>`).join('');
+      } else { zonesRow.classList.remove('vis'); }
+
+      const rows = ship.isBaseStation ? [
+        ['MMSI', ship.mmsi],
+        ['Tipe', 'Base Station'],
+        ['Lat', ship.lat != null ? ship.lat.toFixed(5) : '—'],
+        ['Lon', ship.lon != null ? ship.lon.toFixed(5) : '—'],
+        ['Altitude', ship.altitude != null ? ship.altitude + ' m' : '—'],
+        ['Last Source', ship.lastSource || '—'],
+        ['Last Update', ship.lastSeen ? new Date(ship.lastSeen).toLocaleTimeString('id-ID') : '—'],
+      ] : ship.isAircraft ? [
+        ['MMSI', ship.mmsi],
+        ['Tipe', 'SAR Aircraft'],
+        ['Altitude', ship.altitude != null ? ship.altitude + ' m' : '—'],
+        ['Lat', ship.lat != null ? ship.lat.toFixed(5) : '—'],
+        ['Lon', ship.lon != null ? ship.lon.toFixed(5) : '—'],
+        ['SOG', ship.sog != null ? ship.sog.toFixed(1) + ' knot' : '—'],
+        ['Last Update', ship.lastSeen ? new Date(ship.lastSeen).toLocaleTimeString('id-ID') : '—'],
+      ] : [
+        ['MMSI', ship.mmsi],
+        ['Tipe', cls],
+        ['Status', ship.navStatus || '—'],
+        ['Lat', ship.lat != null ? ship.lat.toFixed(5) : '—'],
+        ['Lon', ship.lon != null ? ship.lon.toFixed(5) : '—'],
+        ['SOG', ship.sog != null ? ship.sog.toFixed(1) + ' knot' : '—'],
+        ['COG', ship.cog != null ? ship.cog.toFixed(1) + '°' : '—'],
+        ['Last Update', ship.lastSeen ? new Date(ship.lastSeen).toLocaleTimeString('id-ID') : '—'],
+      ];
+      document.getElementById('det-rows').innerHTML = rows.map(([k, v]) => `<div class="dr"><span class="dk">${k}</span><span class="dv">${esc(String(v))}</span></div>`).join('');
+      startCountdown(mmsi);
+    }
+    function closeDetail() { selectedMMSI = null; document.getElementById('detail').classList.remove('vis'); if (countdownTmr) { clearInterval(countdownTmr); countdownTmr = null; } refreshIcons(); renderSidebar(); }
+    function locateSelected() { const s = ships[selectedMMSI]; if (s?.lat) map.flyTo([s.lat, s.lon], Math.max(map.getZoom(), 12), { animate: true, duration: 1.2 }); }
+    function locateShip(mmsi) { selectShip(mmsi); const s = ships[mmsi]; if (s?.lat) map.flyTo([s.lat, s.lon], 16, { animate: true, duration: .8 }); }
+    function startCountdown(mmsi) {
+      if (countdownTmr) clearInterval(countdownTmr);
+      const bar = document.getElementById('timer-bar'), lbl = document.getElementById('timer-lbl');
+      countdownTmr = setInterval(() => { const s = ships[mmsi]; if (!s) { closeDetail(); return; } const rem = Math.max(0, TIMEOUT_MS - (Date.now() - s.lastSeen)), pct = rem / TIMEOUT_MS * 100, m = Math.floor(rem / 60_000), sec = Math.floor((rem % 60_000) / 1000); lbl.textContent = `${m}:${String(sec).padStart(2, '0')}`; bar.style.width = pct + '%'; if (pct > 60) { bar.style.background = 'linear-gradient(90deg,var(--green),var(--accent))'; lbl.style.color = 'var(--green)'; } else if (pct > 25) { bar.style.background = 'linear-gradient(90deg,var(--yellow),var(--orange))'; lbl.style.color = 'var(--yellow)'; } else { bar.style.background = 'linear-gradient(90deg,var(--red),var(--orange))'; lbl.style.color = 'var(--red)'; } }, 1000);
+    }
+
+
+    // ═══════════════════════════════════════
+    //  SOURCES MODAL — TCP + Serial
+    // ═══════════════════════════════════════
+    let currentSrcType = 'tcp';
+    function setSrcType(type) {
+      currentSrcType = type;
+      document.getElementById('tab-tcp').classList.toggle('active', type === 'tcp');
+      document.getElementById('tab-serial').classList.toggle('active', type === 'serial');
+      document.getElementById('tab-aishub').classList.toggle('active', type === 'aishub');
+      document.getElementById('tcp-fields').style.display = type === 'tcp' ? 'block' : 'none';
+      document.getElementById('serial-fields').style.display = type === 'serial' ? 'block' : 'none';
+      document.getElementById('aishub-fields').style.display = type === 'aishub' ? 'block' : 'none';
+    }
+    function setAISHubArea(latMin, latMax, lonMin, lonMax) {
+      document.getElementById('sf-latmin').value = latMin;
+      document.getElementById('sf-latmax').value = latMax;
+      document.getElementById('sf-lonmin').value = lonMin;
+      document.getElementById('sf-lonmax').value = lonMax;
+    }
+    function syncInterval(val) {
+      const v = Math.max(70, parseInt(val) || 70);
+      document.getElementById('sf-interval').value = v;
+      document.getElementById('sf-interval-range').value = Math.min(v, 600);
+      document.getElementById('sf-interval-lbl').textContent = v + 's';
+    }
+    function setInterval_(sec) {
+      syncInterval(sec);
+    }
+    function applyPreset(baud, data, stop, parity) {
+      document.getElementById('sf-baud').value = baud;
+      document.getElementById('sf-databits').value = data;
+      document.getElementById('sf-stopbits').value = stop;
+      document.getElementById('sf-parity').value = parity;
+    }
+    async function scanPorts() {
+      const btn = document.getElementById('btn-scan-ports');
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; btn.disabled = true;
+      try {
+        const res = await fetch('/api/serial/ports', { credentials: 'include' }); const data = await res.json();
+        const list = document.getElementById('ports-list'), items = document.getElementById('ports-items');
+        if (!data.available) { items.innerHTML = `<div style="font-size:11px;color:var(--red);padding:6px 0"><i class="fa-solid fa-circle-xmark"></i> ${esc(data.error)}</div>`; list.style.display = 'block'; return; }
+        if (!data.ports?.length) { items.innerHTML = '<div style="font-size:11px;color:var(--text2);padding:6px 0">Tidak ada port serial terdeteksi.</div>'; list.style.display = 'block'; return; }
+        items.innerHTML = data.ports.map(p => `<div class="port-item" onclick="selectPort('${esc(p.path)}',this)"><i class="fa-solid fa-plug" style="color:var(--accent);font-size:13px"></i><span class="port-path">${esc(p.path)}</span><span class="port-mfr">${esc(p.manufacturer || p.pnpId || '')}</span>${p.vendorId ? `<span style="font-size:9.5px;color:var(--text3)">${p.vendorId}:${p.productId}</span>` : ''}</div>`).join('');
+        list.style.display = 'block'; toast(`✓ ${data.ports.length} port ditemukan`, 'ok');
+      } catch (e) { toast('Gagal scan: ' + e.message, 'err'); }
+      finally { btn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Scan'; btn.disabled = false; }
+    }
+    function selectPort(portPath, el) {
+      document.getElementById('sf-serialport').value = portPath;
+      document.querySelectorAll('.port-item').forEach(x => x.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+    function renderSourceList() {
+      const body = document.getElementById('src-list-body'), empty = document.getElementById('src-empty');
+      if (!sources.length) { empty.style.display = 'flex'; body.querySelectorAll('.src-card').forEach(e => e.remove()); document.getElementById('src-badge').textContent = 0; return; }
+      empty.style.display = 'none';
+      const seen = new Set(sources.map(s => s.id));
+      body.querySelectorAll('.src-card').forEach(el => { if (!seen.has(el.dataset.id)) el.remove(); });
+      sources.forEach(s => {
+        let card = body.querySelector(`.src-card[data-id="${s.id}"]`);
+        if (!card) { card = document.createElement('div'); card.className = 'src-card'; card.dataset.id = s.id; card.onclick = () => editSrc(s.id); body.appendChild(card); }
+        card.className = 'src-card' + (srcEditId === s.id ? ' active-edit' : '');
+        const sc = s.enabled ? s.status : 'disabled';
+        const stTxt = { connected: 'Terhubung', connecting: 'Menghubungkan…', disconnected: 'Terputus', disabled: 'Dinonaktifkan', error: 'Error' }[sc] || sc;
+        const isSerial = s.type === 'serial';
+        const isAISHub = s.type === 'aishub';
+        const effSec = s.effectiveIntervalSec || s.intervalSec || 70;
+        const wCount = s.wilayahCount || 1;
+        const connInfo = isSerial ? `${s.port} @ ${s.baudRate}` : isAISHub ? `${s.username || '—'} · ${effSec}s` : `${s.host}:${s.tcpPort}`;
+        const typeIcon = isSerial ? '<i class="fa-solid fa-plug" style="color:var(--yellow);font-size:10px"></i>' : isAISHub ? '<i class="fa-solid fa-satellite-dish" style="color:var(--orange);font-size:10px"></i>' : '<i class="fa-solid fa-network-wired" style="color:var(--accent);font-size:10px"></i>';
+        const altBadge = isAISHub && wCount > 1 ? `<span style="font-size:9px;background:rgba(255,145,0,.15);color:var(--orange);border:1px solid rgba(255,145,0,.3);border-radius:9px;padding:1px 7px;margin-left:4px"><i class="fa-solid fa-rotate"></i> ${wCount} wilayah · ${effSec}s</span>` : '';
+        card.innerHTML = `<div class="src-card-top"><div class="src-status-dot ${sc}"></div><div class="src-name">${esc(s.name)}${altBadge}</div><div class="src-actions"><button class="src-btn ${s.enabled ? 'toggle-on' : 'toggle-off'}" title="Toggle" onclick="event.stopPropagation();toggleSrc('${s.id}')"><i class="fa-solid fa-power-off"></i></button></div></div><div class="src-info-grid"><div class="src-info-item"><div class="src-info-key">${typeIcon} ${isSerial ? 'Serial' : isAISHub ? 'AISHub' : 'TCP'}</div><div class="src-info-val" style="font-family:monospace;font-size:10px">${esc(connInfo)}</div></div><div class="src-info-item"><div class="src-info-key">Status</div><div class="src-info-val src-status-text ${sc}">${stTxt}</div></div><div class="src-info-item"><div class="src-info-key">RX Total</div><div class="src-info-val">${(s.rxTotal || 0).toLocaleString('id-ID')}</div></div><div class="src-info-item"><div class="src-info-key">Reconnect</div><div class="src-info-val">${s.reconnectCount || 0}×</div></div></div><div class="src-alert-badge ${s.alertEnabled ? '' : 'off'}"><i class="fa-solid fa-bell${s.alertEnabled ? '' : '-slash'}"></i> Alert ${s.alertEnabled ? 'aktif' : 'off'}</div>`;
+      });
+      const hasErr = sources.some(s => s.enabled && s.status === 'disconnected');
+      document.getElementById('src-badge').textContent = sources.length;
+      document.getElementById('src-badge').className = `tb-badge${hasErr ? ' err' : ''}`;
+    }
+    function showSrcForm() {
+      srcEditId = null;
+      document.getElementById('sform-title-txt').textContent = 'Tambah Sumber';
+      document.getElementById('sform-title').querySelector('i').className = 'fa-solid fa-plus-circle';
+      ['sf-name', 'sf-host', 'sf-serialport', 'sf-email'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('sf-tcpport').value = '6000';
+      document.getElementById('sf-baud').value = '38400';
+      document.getElementById('sf-databits').value = '8';
+      document.getElementById('sf-stopbits').value = '1';
+      document.getElementById('sf-parity').value = 'none';
+      document.getElementById('sf-enabled').checked = true;
+      document.getElementById('sf-alert').checked = false;
+      document.getElementById('src-alert-box').style.display = 'none';
+      document.getElementById('src-del-btn').style.display = 'none';
+      document.getElementById('delete-confirm').classList.remove('show');
+      document.getElementById('ports-list').style.display = 'none';
+      document.getElementById('sf-aishub-user').value = '';
+      syncInterval(70);
+      document.getElementById('sf-latmin').value = '-11';
+      document.getElementById('sf-latmax').value = '6';
+      document.getElementById('sf-lonmin').value = '95';
+      document.getElementById('sf-lonmax').value = '141';
+      document.querySelectorAll('.src-card').forEach(c => c.classList.remove('active-edit'));
+      setSrcType('tcp');
+    }
+    function editSrc(id) {
+      const s = sources.find(x => x.id === id); if (!s) return;
+      srcEditId = id; const type = s.type || 'tcp';
+      document.getElementById('sform-title-txt').textContent = 'Edit Sumber';
+      document.getElementById('sform-title').querySelector('i').className = 'fa-solid fa-pencil';
+      setSrcType(type);
+      document.getElementById('sf-name').value = s.name;
+      document.getElementById('sf-enabled').checked = s.enabled;
+      document.getElementById('sf-alert').checked = s.alertEnabled;
+      document.getElementById('sf-email').value = s.alertEmail || '';
+      document.getElementById('src-alert-box').style.display = s.alertEnabled ? 'block' : 'none';
+      if (type === 'tcp') { document.getElementById('sf-host').value = s.host || ''; document.getElementById('sf-tcpport').value = s.tcpPort || 6000; }
+      else if (type === 'serial') { document.getElementById('sf-serialport').value = s.port || ''; document.getElementById('sf-baud').value = s.baudRate || 38400; document.getElementById('sf-databits').value = s.dataBits || 8; document.getElementById('sf-stopbits').value = s.stopBits || 1; document.getElementById('sf-parity').value = s.parity || 'none'; }
+      else if (type === 'aishub') { document.getElementById('sf-aishub-user').value = s.username || ''; document.getElementById('sf-latmin').value = s.latMin ?? -11; document.getElementById('sf-latmax').value = s.latMax ?? 6; document.getElementById('sf-lonmin').value = s.lonMin ?? 95; document.getElementById('sf-lonmax').value = s.lonMax ?? 141; syncInterval(s.intervalSec || 70); }
+      document.getElementById('src-del-btn').style.display = '';
+      document.getElementById('delete-confirm').classList.remove('show');
+      document.getElementById('ports-list').style.display = 'none';
+      document.querySelectorAll('.src-card').forEach(c => c.classList.toggle('active-edit', c.dataset.id === id));
+    }
+    async function saveSrc() {
+      const name = document.getElementById('sf-name').value.trim();
+      if (!name) { toast('Nama wajib diisi', 'err'); return; }
+      let payload = { name, type: currentSrcType, enabled: document.getElementById('sf-enabled').checked, alertEnabled: document.getElementById('sf-alert').checked, alertEmail: document.getElementById('sf-email').value.trim() };
+      if (currentSrcType === 'tcp') {
+        const host = document.getElementById('sf-host').value.trim(), port = parseInt(document.getElementById('sf-tcpport').value);
+        if (!host || !port) { toast('Host dan Port wajib diisi', 'err'); return; }
+        payload = { ...payload, host, port };
+      } else if (currentSrcType === 'serial') {
+        const port = document.getElementById('sf-serialport').value.trim();
+        if (!port) { toast('Port serial wajib diisi', 'err'); return; }
+        payload = { ...payload, port, baudRate: parseInt(document.getElementById('sf-baud').value), dataBits: parseInt(document.getElementById('sf-databits').value), stopBits: parseFloat(document.getElementById('sf-stopbits').value), parity: document.getElementById('sf-parity').value };
+      } else if (currentSrcType === 'aishub') {
+        const username = document.getElementById('sf-aishub-user').value.trim();
+        if (!username) { toast('Username AISHub wajib diisi', 'err'); return; }
+        const _iSec = Math.max(70, parseInt(document.getElementById('sf-interval').value) || 70);
+        payload = { ...payload, username, latMin: parseFloat(document.getElementById('sf-latmin').value) || (-11), latMax: parseFloat(document.getElementById('sf-latmax').value) || 6, lonMin: parseFloat(document.getElementById('sf-lonmin').value) || 95, lonMax: parseFloat(document.getElementById('sf-lonmax').value) || 141, intervalSec: _iSec };
+      }
+      const btn = document.getElementById('src-save-btn'); btn.disabled = true; btn.textContent = 'Menyimpan…';
+      try {
+        const url = srcEditId ? `/api/sources/${srcEditId}` : '/api/sources', method = srcEditId ? 'PUT' : 'POST';
+        const res = await fetch(url, { credentials: 'include', method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Gagal');
+        toast(srcEditId ? `✓ Sumber "${name}" diperbarui` : `✓ Sumber "${name}" ditambahkan`, 'ok');
+        showSrcForm();
+      } catch (e) { toast(e.message, 'err'); }
+      finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan'; }
+    }
+    async function toggleSrc(id) { try { await fetch(`/api/sources/${id}/toggle`, { credentials: 'include', method: 'POST' }); } catch { toast('Gagal', 'err'); } }
+    async function confirmSrcDelete() {
+      if (!srcEditId) return; const s = sources.find(x => x.id === srcEditId);
+      try { await fetch(`/api/sources/${srcEditId}`, { credentials: 'include', method: 'DELETE' }); toast(`✓ Sumber "${s?.name}" dihapus`, 'ok'); showSrcForm(); }
+      catch (e) { toast(e.message, 'err'); }
+    }
+
+    // ═══════════════════════════════════════
+    //  GEOFENCE MODAL
+    // ═══════════════════════════════════════
+    function initDrawMap() {
+      if (drawMap) return;
+      drawMap = L.map('draw-map', { center: [-5.5, 113], zoom: 5, zoomControl: true });
+      // OSM Nautical base — sama dengan peta utama
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org">OpenStreetMap</a>',
+        maxZoom: 19
+      }).addTo(drawMap);
+      // OpenSeaMap seamarks overlay
+      L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openseamap.org">OpenSeaMap</a>',
+        maxZoom: 19, opacity: .85
+      }).addTo(drawMap);
+
+      drawnItems = new L.FeatureGroup().addTo(drawMap);
+      drawControl = new L.Control.Draw({
+        position: 'topleft',
+        draw: {
+          polygon: { allowIntersection: false, showArea: true, shapeOptions: { color: '#0070d8', fillOpacity: .12, weight: 2 } },
+          rectangle: { shapeOptions: { color: '#0070d8', fillOpacity: .12, weight: 2 } },
+          polyline: false, circle: false, marker: false, circlemarker: false,
+        },
+        edit: { featureGroup: drawnItems, remove: false },
+      });
+      drawMap.addControl(drawControl);
+
+      drawMap.on(L.Draw.Event.CREATED, e => {
+        drawnItems.clearLayers();
+        drawnItems.addLayer(e.layer);
+        drawnPolygon = e.layer.getLatLngs()[0].map(ll => [ll.lat, ll.lng]);
+        applyZoneColor(selectedColor);
+        document.getElementById('btn-clear-draw').classList.add('show');
+        document.getElementById('draw-tip').textContent = `✓ ${drawnPolygon.length} titik digambar`;
+        document.getElementById('polygon-info').textContent = `Polygon: ${drawnPolygon.length} titik`;
+      });
+      drawMap.on(L.Draw.Event.EDITSTOP, e => {
+        if (drawnItems.getLayers().length) {
+          drawnPolygon = drawnItems.getLayers()[0].getLatLngs()[0].map(ll => [ll.lat, ll.lng]);
+          document.getElementById('polygon-info').textContent = `Polygon: ${drawnPolygon.length} titik (diedit)`;
+        }
+      });
+    }
+
+    function clearDrawing() {
+      drawnItems?.clearLayers(); drawnPolygon = null;
+      document.getElementById('btn-clear-draw').classList.remove('show');
+      document.getElementById('draw-tip').textContent = '✏️ Klik tombol Polygon atau Rectangle di kiri atas peta untuk mulai menggambar';
+      document.getElementById('polygon-info').textContent = '';
+    }
+
+    function applyZoneColor(color) {
+      selectedColor = color;
+      document.querySelectorAll('.color-swatch').forEach(el => el.classList.toggle('active', el.dataset.color === color));
+      if (drawnItems && drawnItems.getLayers().length) { drawnItems.getLayers()[0].setStyle({ color, fillColor: color, fillOpacity: .15 }); }
+    }
+
+    function initColorSwatches() {
+      const wrap = document.getElementById('color-swatches');
+      if (wrap.childElementCount) return;
+      ZONE_COLORS.forEach((c, i) => {
+        const d = document.createElement('div');
+        d.className = 'color-swatch' + (i === 0 ? ' active' : '');
+        d.style.background = c; d.dataset.color = c;
+        d.onclick = () => applyZoneColor(c);
+        wrap.appendChild(d);
+      });
+    }
+
+    function showGeoEmailBox() {
+      const needEmail = document.getElementById('zf-enter').checked || document.getElementById('zf-exit').checked;
+      document.getElementById('geo-email-box').style.display = needEmail ? 'block' : 'none';
+    }
+
+    function renderZoneList() {
+      const body = document.getElementById('zone-list-body'), empty = document.getElementById('zone-empty');
+      document.getElementById('s-zones').textContent = zones.length;
+      document.getElementById('geo-badge').textContent = zones.length;
+      if (!zones.length) { empty.style.display = 'flex'; body.querySelectorAll('.zone-card').forEach(e => e.remove()); return; }
+      empty.style.display = 'none';
+      const seen = new Set(zones.map(z => z.id));
+      body.querySelectorAll('.zone-card').forEach(el => { if (!seen.has(el.dataset.id)) el.remove(); });
+      zones.forEach(z => {
+        let card = body.querySelector(`.zone-card[data-id="${z.id}"]`);
+        if (!card) { card = document.createElement('div'); card.className = 'zone-card'; card.dataset.id = z.id; card.onclick = () => { editZone(z.id); highlightZone(z.id); }; body.appendChild(card); }
+        card.className = 'zone-card' + (zoneEditId === z.id ? ' active-edit' : '');
+        card.style.borderLeftColor = z.color || '#ff1744';
+        const alerts = []; if (z.alertOnEnter) alerts.push('Masuk'); if (z.alertOnExit) alerts.push('Keluar');
+        card.innerHTML = `<div class="zone-card-top"><div class="zone-color-dot" style="background:${z.color || '#ff1744'}"></div><div class="zone-card-name">${esc(z.name)}</div><div class="zone-card-actions"><button class="src-btn ${z.enabled ? 'toggle-on' : 'toggle-off'}" title="Toggle" onclick="event.stopPropagation();toggleZone('${z.id}')"><i class="fa-solid fa-power-off"></i></button></div></div><div class="zone-info-row"><span class="zone-stat"><i class="fa-solid fa-ship" style="font-size:9px"></i><span class="zone-ship-count">${z.shipCount || 0}</span> kapal</span><span class="zone-stat"><i class="fa-solid fa-map-pin" style="font-size:9px;color:var(--text3)"></i><span style="color:var(--text2)">${z.polygon?.length || 0} titik</span></span></div>${!z.enabled ? '<div class="zone-disabled-badge">Nonaktif</div>' : ''}${alerts.length ? `<div class="zone-alert-badge"><i class="fa-solid fa-bell"></i> Alert: ${alerts.join(', ')}</div>` : ''}`;
+      });
+    }
+
+    function showZoneForm() {
+      zoneEditId = null;
+      document.getElementById('zform-title-txt').textContent = 'Buat Zona Baru';
+      document.getElementById('zform-title').querySelector('i').className = 'fa-solid fa-plus-circle';
+      document.getElementById('zf-name').value = ''; document.getElementById('zf-desc').value = '';
+      document.getElementById('zf-enabled').checked = true; document.getElementById('zf-enter').checked = true;
+      document.getElementById('zf-exit').checked = false; document.getElementById('zf-email').value = '';
+      document.getElementById('geo-email-box').style.display = 'block';
+      document.getElementById('zone-del-btn').style.display = 'none'; document.getElementById('zdel-confirm').classList.remove('show');
+      clearDrawing(); selectedColor = ZONE_COLORS[zones.length % ZONE_COLORS.length];
+      document.querySelectorAll('.color-swatch').forEach(el => el.classList.toggle('active', el.dataset.color === selectedColor));
+      document.querySelectorAll('.zone-card').forEach(c => c.classList.remove('active-edit'));
+      setTimeout(() => { if (drawMap) drawMap.invalidateSize(); }, 100);
+    }
+
+    function editZone(id) {
+      const z = zones.find(x => x.id === id); if (!z) return;
+      zoneEditId = id;
+      document.getElementById('zform-title-txt').textContent = 'Edit Zona';
+      document.getElementById('zform-title').querySelector('i').className = 'fa-solid fa-pencil';
+      document.getElementById('zf-name').value = z.name; document.getElementById('zf-desc').value = z.description || '';
+      document.getElementById('zf-enabled').checked = z.enabled; document.getElementById('zf-enter').checked = z.alertOnEnter;
+      document.getElementById('zf-exit').checked = z.alertOnExit; document.getElementById('zf-email').value = z.alertEmail || '';
+      showGeoEmailBox();
+      document.getElementById('zone-del-btn').style.display = ''; document.getElementById('zdel-confirm').classList.remove('show');
+      selectedColor = z.color || ZONE_COLORS[0];
+      document.querySelectorAll('.color-swatch').forEach(el => el.classList.toggle('active', el.dataset.color === selectedColor));
+      document.querySelectorAll('.zone-card').forEach(c => c.classList.toggle('active-edit', c.dataset.id === id));
+
+      // Load polygon onto draw map
+      clearDrawing();
+      if (z.polygon?.length >= 3) {
+        const latlngs = z.polygon.map(p => L.latLng(p[0], p[1]));
+        const poly = L.polygon(latlngs, { color: z.color || '#ff1744', fillColor: z.color || '#ff1744', fillOpacity: .15, weight: 2 });
+        drawnItems.addLayer(poly);
+        drawnPolygon = [...z.polygon];
+        document.getElementById('btn-clear-draw').classList.add('show');
+        document.getElementById('draw-tip').textContent = `✓ ${drawnPolygon.length} titik dimuat`;
+        document.getElementById('polygon-info').textContent = `Polygon: ${drawnPolygon.length} titik`;
+        setTimeout(() => drawMap.fitBounds(poly.getBounds().pad(.2)), 150);
+      }
+      setTimeout(() => { if (drawMap) drawMap.invalidateSize(); }, 100);
+    }
+
+    async function saveZone() {
+      const name = document.getElementById('zf-name').value.trim();
+      if (!name) { toast('Nama zona wajib diisi', 'err'); return; }
+      if (!drawnPolygon || drawnPolygon.length < 3) { toast('Gambar polygon minimal 3 titik di peta', 'err'); return; }
+      const btn = document.getElementById('zone-save-btn'); btn.disabled = true; btn.textContent = 'Menyimpan…';
+      try {
+        const url = zoneEditId ? `/api/zones/${zoneEditId}` : '/api/zones', method = zoneEditId ? 'PUT' : 'POST';
+        const res = await fetch(url, { credentials: 'include', method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description: document.getElementById('zf-desc').value.trim(), polygon: drawnPolygon, color: selectedColor, enabled: document.getElementById('zf-enabled').checked, alertOnEnter: document.getElementById('zf-enter').checked, alertOnExit: document.getElementById('zf-exit').checked, alertEmail: document.getElementById('zf-email').value.trim() }) });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Gagal');
+        toast(zoneEditId ? `✓ Zona "${name}" diperbarui` : `✓ Zona "${name}" dibuat`, 'ok');
+        showZoneForm();
+      } catch (e) { toast(e.message, 'err'); }
+      finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan Zona'; }
+    }
+    async function toggleZone(id) { try { await fetch(`/api/zones/${id}/toggle`, { credentials: 'include', method: 'POST' }); } catch (e) { toast('Gagal', 'err'); } }
+    async function confirmZoneDelete() { if (!zoneEditId) return; const z = zones.find(x => x.id === zoneEditId); try { await fetch(`/api/zones/${zoneEditId}`, { credentials: 'include', method: 'DELETE' }); toast(`✓ Zona "${z?.name}" dihapus`, 'ok'); showZoneForm(); } catch (e) { toast(e.message, 'err'); } }
+
+    // ── MODAL ─────────────────────────────────────────
+    function openModal(type) {
+      // Login, Profile, Users — dedicated handling
+      if (type === 'login') {
+        document.getElementById('login-modal').classList.add('open');
+        setTimeout(() => { const el = document.getElementById('login-user'); if (el) el.focus(); }, 100);
+        return;
+      }
+      if (type === 'profile') {
+        document.getElementById('profile-modal').classList.add('open');
+        openProfile();
+        return;
+      }
+      if (type === 'users') {
+        document.getElementById('users-modal').classList.add('open');
+        loadUsers();
+        return;
+      }
+      // src & geo require login — wait until session check is complete
+      sessionReady.then(() => {
+        if (!currentUser) {
+          pendingAction = () => openModal(type);
+          openModal('login');
+          return;
+        }
+        document.getElementById(type + '-modal').classList.add('open');
+        if (type === 'geo') {
+          setTimeout(() => {
+            initDrawMap(); initColorSwatches();
+            if (drawMap) drawMap.invalidateSize();
+          }, 120);
+          fetchEmailStatus('geo');
+        }
+        if (type === 'src') fetchEmailStatus('src');
+      });
+    }
+    function closeModal(type) { document.getElementById(type + '-modal').classList.remove('open'); }
+    function overlayClick(e, id) { if (e.target === document.getElementById(id)) closeModal(id.replace('-modal', '')); }
+
+    async function fetchEmailStatus(ctx) {
+      try {
+        const data = await (await fetch('/api/email/status', { credentials: 'include' })).json();
+        const boxId = ctx === 'geo' ? 'geo-smtp-status' : 'src-smtp-status';
+        const btnId = ctx === 'geo' ? 'geo-test-btn' : 'src-test-btn';
+        const box = document.getElementById(boxId), btn = document.getElementById(btnId);
+        if (data.enabled) { box.className = 'email-status-row ok'; box.innerHTML = `<i class="fa-solid fa-circle-check"></i> SMTP terhubung ke <b>${data.host}</b>`; btn.disabled = false; }
+        else if (data.configured) { box.className = 'email-status-row warn'; box.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> SMTP gagal terhubung. Cek kredensial.`; btn.disabled = true; }
+        else { box.className = 'email-status-row err'; box.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> SMTP belum dikonfigurasi. Edit file <b>.env</b>.`; btn.disabled = true; }
+      } catch { }
+    }
+
+    async function testEmail(ctx) {
+      const emailId = ctx === 'geo' ? 'zf-email' : 'sf-email';
+      const btnId = ctx === 'geo' ? 'geo-test-btn' : 'src-test-btn';
+      const btn = document.getElementById(btnId);
+      btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim…';
+      try { const email = document.getElementById(emailId).value.trim(); const res = await fetch('/api/email/test', { credentials: 'include', method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }); const d = await res.json(); d.ok ? toast('✓ Email test terkirim!', 'ok') : toast('Gagal: ' + d.message, 'err'); }
+      catch (e) { toast('Error: ' + e.message, 'err'); }
+      finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Kirim Email Test'; }
+    }
+
+    // ── GEO EVENT TOASTS ──────────────────────────────
+    function showGeoCard(event, zone, ship) {
+      const container = document.getElementById('geo-toast');
+      const card = document.createElement('div');
+      card.className = `geo-card ${event}`;
+      const name = ship.name || `MMSI ${ship.mmsi}`;
+      const icon = event === 'enter' ? '🚨' : '🟡';
+      const action = event === 'enter' ? 'memasuki' : 'meninggalkan';
+      card.innerHTML = `<div class="geo-card-icon">${icon}</div><div class="geo-card-body"><div class="geo-card-title">${esc(name)}</div><div class="geo-card-sub">${action} zona <b>${esc(zone.name)}</b>${ship.sog != null ? ` · ${ship.sog.toFixed(1)} kn` : ''}</div></div><button class="geo-card-close" onclick="this.closest('.geo-card').remove()"><i class="fa-solid fa-xmark"></i></button>`;
+      container.appendChild(card);
+      setTimeout(() => { if (card.parentNode) card.remove(); }, 12000);
+      // Pulse zone on map
+      const layer = zoneLayers[zone.id];
+      if (layer) { layer.setStyle({ weight: event === 'enter' ? 4 : 2, fillOpacity: event === 'enter' ? .28 : .08 }); setTimeout(() => layer.setStyle({ weight: zone.enabled ? 2 : 1, fillOpacity: zone.enabled ? .13 : .05 }), 2000); }
+    }
+
+    // ── MessagePack decoder ─────────────────────────────
+    const unpackr = new msgpackr.Unpackr({ useRecords: false });
+
+    // ── WEBSOCKET ─────────────────────────────────────
+    let ws, wsTimer;
+    function connectWS() {
+      if (ws) { try { ws.close(); } catch { } }
+      // Pass token via query param so server can detect auth on WS handshake
+      const wsUrl = currentUser
+        ? `${WS_URL}?token=${encodeURIComponent(_getToken())}`
+        : WS_URL;
+      ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
+      ws.onopen = () => { setConn(true); if (wsTimer) { clearTimeout(wsTimer); wsTimer = null; } };
+      ws.onmessage = ({ data }) => {
+        try {
+          const msg = unpackr.decode(new Uint8Array(data));
+          if (msg.type === 'init') {
+            // Init: ships in short-key format {m,a,o,...} — has ALL fields
+            const initList = msg.ships || [];
+            initList.forEach(d => { const s = expandInit(d); ships[s.mmsi] = { ...(ships[s.mmsi] || {}), ...s }; addOrUpdateMarker(ships[s.mmsi]); });
+            scheduleSidebar();
+            updateStats(msg.stats || {});
+            if (msg.sources) handleSources(msg.sources);
+            if (msg.zones) handleZones(msg.zones);
+          }
+          if (msg.type === 'pos') handlePos(msg.d || []);        // position delta batch
+          if (msg.type === 'static') handleStatic(msg.d || []);    // static data batch
+          if (msg.type === 'update') handleUpdate(msg.ship);      // legacy compat
+          if (msg.type === 'remove') handleRemove(msg.mmsis || []);
+          if (msg.type === 'status') setConn(msg.connected);
+          if (msg.type === 'stats') { updateStats(msg); }
+          if (msg.type === 'sources') handleSources(msg.sources);
+          if (msg.type === 'zones') handleZones(msg.zones);
+          if (msg.type === 'geo-event') showGeoCard(msg.event, msg.zone, msg.ship);
+        } catch { }
+      };
+      ws.onclose = () => { setConn(false); wsTimer = setTimeout(connectWS, 4000); };
+      ws.onerror = () => setConn(false);
+    }
+    let _authToken = null;  // in-memory token for WS auth (not accessible from httpOnly cookie)
+
+    // Extract token from in-memory variable (set at login)
+    function _getToken() {
+      return _authToken || '';
+    }
+    function handleSources(src) { sources = src || []; renderSourceList(); }
+    function handleZones(zs) { zones = zs || []; renderZoneList(); renderZoneLayers(); renderSidebar(); if (selectedMMSI) renderDetail(selectedMMSI); }
+    function setConn(on) { document.getElementById('conn-dot').className = on ? 'on' : ''; const l = document.getElementById('conn-lbl'); l.textContent = on ? 'Online' : 'Offline'; l.style.color = on ? 'var(--green)' : 'var(--red)'; }
+    function updateStats(s) { if (s.received != null) document.getElementById('s-rx').textContent = fmt(s.received); if (s.decoded != null) document.getElementById('s-dec').textContent = fmt(s.decoded); if (s.count != null) document.getElementById('s-ships').textContent = s.count; if (s.connected != null) setConn(s.connected); }
+
+    // ── UI EVENTS ─────────────────────────────────────
+    document.getElementById('search-box').addEventListener('input', e => { searchQuery = e.target.value.trim(); renderSidebar(); });
+    function isShipVisible(ship) {
+      if (ship.classB && !showClassB) return false;
+      if (!ship.classB && !showClassA) return false;
+      if (ship.isAton && !showAton) return false;
+      if (ship.isBaseStation && !showBase) return false;
+      if (ship.isAircraft && !showSAR) return false;
+      if (ship.isLongRange && !showLongRange) return false;
+      return true;
+    }
+    function applyVisibility() {
+      for (const mmsi of Object.keys(ships)) {
+        const ship = ships[mmsi];
+        if (isShipVisible(ship)) {
+          if (!markers[mmsi]) addOrUpdateMarker(ship);
+        } else {
+          if (markers[mmsi]) removeMarker(mmsi);
+        }
+      }
+    }
+    document.querySelectorAll('.togtab').forEach(el => { el.onclick = () => { const t = el.dataset.type; if (t === 'classA') showClassA = !showClassA; else if (t === 'classB') showClassB = !showClassB; else if (t === 'aton') showAton = !showAton; else if (t === 'base') showBase = !showBase; else if (t === 'sar') showSAR = !showSAR; else if (t === 'lrange') showLongRange = !showLongRange; el.classList.toggle('active'); renderSidebar(); applyVisibility(); }; });
+    document.querySelectorAll('.cftab').forEach(el => { el.onclick = () => { document.querySelectorAll('.cftab').forEach(t => t.classList.remove('active')); el.classList.add('active'); filterClass = el.dataset.class; renderSidebar(); }; });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        ['login', 'profile', 'users', 'src', 'geo'].forEach(t => closeModal(t));
+      }
+    });
+
+    // ── UTILS ─────────────────────────────────────────
+    const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const fmt = n => Number(n).toLocaleString('id-ID');
+    let toastTmr;
+    function toast(msg, type = '', ms = 3000) { const el = document.getElementById('toast'); el.textContent = msg; el.className = 'show ' + (type === 'ok' ? 'ok' : type === 'err' ? 'err' : ''); clearTimeout(toastTmr); toastTmr = setTimeout(() => el.className = '', ms); }
+
+    // ═══════════════════════════════════════
+    //  AUTH SYSTEM
+    // ═══════════════════════════════════════
+    let currentUser = null;  // { id, username, name, role, roleLabel }
+    let pendingAction = null; // callback after login
+    let _sessionResolve;
+    // sessionReady resolves when checkSession() completes — prevents race condition
+    const sessionReady = new Promise(res => { _sessionResolve = res; });
+
+    // Check session on load
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          _authToken = data.token;   // restore token for WS
+          currentUser = data;
+          delete currentUser.token;   // don't expose in currentUser object
+          onLoginSuccess(false); // false = don't reconnect WS (boot does it)
+        } else {
+          onLoggedOut();
+        }
+      } catch { onLoggedOut(); }
+      finally { _sessionResolve(); } // unblock sessionReady
+    }
+
+    // Called after successful login or session restore
+    function onLoginSuccess(reconnect = true) {
+      document.getElementById('user-menu').style.display = '';
+      document.getElementById('btn-login').style.display = 'none';
+      document.getElementById('btn-logout').style.display = '';
+      // Update user avatar + label
+      const initials = (currentUser.name || currentUser.username).slice(0, 1).toUpperCase();
+      document.getElementById('user-avatar').textContent = initials;
+      document.getElementById('user-label').textContent = currentUser.name || currentUser.username;
+      document.getElementById('dd-name').textContent = currentUser.name || currentUser.username;
+      document.getElementById('dd-role').textContent = currentUser.roleLabel;
+      // Show admin-only items
+      const isAdmin = currentUser.role === 'admin';
+      document.getElementById('btn-manage-users').style.display = isAdmin ? '' : 'none';
+      // Reconnect WS and fetch protected data
+      if (reconnect) connectWS();
+      fetchProtectedData();
+      // Execute pending action if any
+      if (pendingAction) { const fn = pendingAction; pendingAction = null; fn(); }
+    }
+
+    function onLoggedOut() {
+      currentUser = null;
+      document.getElementById('user-menu').style.display = 'none';
+      document.getElementById('btn-login').style.display = '';
+      document.getElementById('btn-logout').style.display = 'none';
+      sources = []; zones = [];
+      renderSourceList();
+      renderZoneList();
+      renderZoneLayers();
+      document.getElementById('src-badge').textContent = '0';
+      document.getElementById('geo-badge').textContent = '0';
+    }
+
+    async function fetchProtectedData() {
+      try {
+        const [srcRes, zoneRes] = await Promise.all([
+          fetch('/api/sources', { credentials: 'include' }),
+          fetch('/api/zones', { credentials: 'include' }),
+        ]);
+        if (srcRes.ok) handleSources(await srcRes.json());
+        if (zoneRes.ok) handleZones(await zoneRes.json());
+      } catch { }
+    }
+
+    // requireLogin — if not logged in, show login modal then execute fn
+    function requireLogin(fn) {
+      if (currentUser) { fn(); return; }
+      pendingAction = fn;
+      openModal('login');
+    }
+
+    async function doLogin() {
+      const username = document.getElementById('login-user').value.trim();
+      const password = document.getElementById('login-pass').value;
+      const errEl = document.getElementById('login-error');
+      const btn = document.getElementById('login-btn');
+      errEl.classList.remove('show');
+      if (!username || !password) { errEl.textContent = 'Username dan password wajib diisi'; errEl.classList.add('show'); return; }
+      btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Masuk…';
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.error || 'Login gagal'; errEl.classList.add('show'); return; }
+        currentUser = data.user;
+        _authToken = data.token;  // store in-memory for WS
+        document.getElementById('login-user').value = '';
+        document.getElementById('login-pass').value = '';
+        closeModal('login');
+        toast(`✓ Selamat datang, ${currentUser.name || currentUser.username}!`, 'ok');
+        onLoginSuccess(true); // reconnect WS with token
+      } catch (e) { errEl.textContent = 'Error: ' + e.message; errEl.classList.add('show'); }
+      finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Login'; }
+    }
+
+    async function doLogout() {
+      try { await fetch('/api/auth/logout', { credentials: 'include', method: 'POST' }); } catch { }
+      _authToken = null;
+      closeAllDropdowns();
+      onLoggedOut();
+      connectWS();
+      toast('Anda telah logout');
+    }
+
+    function toggleUserMenu() {
+      const dd = document.getElementById('user-dropdown');
+      dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+    }
+    function closeAllDropdowns() {
+      document.getElementById('user-dropdown').style.display = 'none';
+    }
+    document.addEventListener('click', e => {
+      if (!document.getElementById('user-menu').contains(e.target)) closeAllDropdowns();
+    });
+
+    function togglePw(inputId, btn) {
+      const el = document.getElementById(inputId);
+      const isText = el.type === 'text';
+      el.type = isText ? 'password' : 'text';
+      btn.innerHTML = isText ? '<i class="fa-regular fa-eye"></i>' : '<i class="fa-regular fa-eye-slash"></i>';
+    }
+
+    // ── PROFILE ─────────────────────────────────────────
+    function openProfile() {
+      if (!currentUser) return;
+      document.getElementById('pf-name').value = currentUser.name || '';
+      document.getElementById('pf-email').value = currentUser.email || '';
+      document.getElementById('pf-oldpass').value = '';
+      document.getElementById('pf-newpass').value = '';
+      document.getElementById('pf-confirm').value = '';
+      // Avatar
+      const initials = (currentUser.name || currentUser.username).slice(0, 1).toUpperCase();
+      document.getElementById('profile-avatar').textContent = initials;
+      document.getElementById('profile-name').textContent = currentUser.name || currentUser.username;
+      document.getElementById('profile-username').textContent = `@${currentUser.username}`;
+      document.getElementById('profile-role-badge').innerHTML = `<span class="role-badge ${currentUser.role}">${esc(currentUser.roleLabel)}</span>`;
+    }
+
+    async function saveProfile() {
+      if (!currentUser) return;
+      try {
+        const res = await fetch(`/api/users/${currentUser.id}`, { credentials: 'include', method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: document.getElementById('pf-name').value.trim(), email: document.getElementById('pf-email').value.trim() }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        currentUser = { ...currentUser, ...data };
+        onLoginSuccess();
+        toast('✓ Profil disimpan', 'ok');
+      } catch (e) { toast(e.message, 'err'); }
+    }
+
+    async function changePassword() {
+      const old = document.getElementById('pf-oldpass').value;
+      const nw = document.getElementById('pf-newpass').value;
+      const conf = document.getElementById('pf-confirm').value;
+      if (!old || !nw) { toast('Semua field password wajib diisi', 'err'); return; }
+      if (nw !== conf) { toast('Konfirmasi password tidak cocok', 'err'); return; }
+      if (nw.length < 6) { toast('Password minimal 6 karakter', 'err'); return; }
+      try {
+        const res = await fetch('/api/auth/me/password', { credentials: 'include', method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentPassword: old, newPassword: nw }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        toast('✓ Password berhasil diubah. Silakan login kembali.', 'ok', 4000);
+        setTimeout(() => { closeModal('profile'); doLogout(); }, 1500);
+      } catch (e) { toast(e.message, 'err'); }
+    }
+
+    // ── USERS MANAGEMENT ─────────────────────────────────
+    let userEditId = null;
+    let usersCache = [];
+
+    const ROLE_COLORS = { admin: '#ff1744', operator: '#ffd740', viewer: '#00c8ff' };
+    const ROLE_LABELS = { admin: 'Administrator', operator: 'Operator', viewer: 'Viewer' };
+
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/users', { credentials: 'include' });
+        if (!res.ok) return;
+        usersCache = await res.json();
+        renderUserList();
+      } catch { }
+    }
+
+    function renderUserList() {
+      const body = document.getElementById('user-list-body');
+      const empty = document.getElementById('user-empty');
+      if (!usersCache.length) { empty.style.display = 'flex'; body.querySelectorAll('.user-card').forEach(e => e.remove()); return; }
+      empty.style.display = 'none';
+      const seen = new Set(usersCache.map(u => u.id));
+      body.querySelectorAll('.user-card').forEach(el => { if (!seen.has(el.dataset.id)) el.remove(); });
+      usersCache.forEach(u => {
+        let card = body.querySelector(`.user-card[data-id="${u.id}"]`);
+        if (!card) { card = document.createElement('div'); card.className = 'user-card'; card.dataset.id = u.id; card.onclick = () => editUser(u.id); body.appendChild(card); }
+        card.className = 'user-card' + (userEditId === u.id ? ' active-edit' : '') + (u.active ? '' : ' user-inactive');
+        const initial = (u.name || u.username).slice(0, 1).toUpperCase();
+        const color = ROLE_COLORS[u.role] || '#00c8ff';
+        const isSelf = currentUser?.id === u.id;
+        card.innerHTML = `<div class="user-card-top">
+      <div class="user-avatar-sm" style="background:${color}33;color:${color};border:1px solid ${color}44">${initial}</div>
+      <div class="user-card-info"><div class="user-card-name">${esc(u.name || u.username)}${isSelf ? ' <span style="font-size:9px;color:var(--text3)">(Saya)</span>' : ''}</div><div class="user-card-username">@${esc(u.username)}</div></div>
+      <span class="role-badge ${u.role}">${ROLE_LABELS[u.role] || u.role}</span>
+    </div>
+    <div style="font-size:10px;color:var(--text2)">${u.email || '—'} &nbsp;·&nbsp; Login terakhir: ${u.lastLogin ? new Date(u.lastLogin).toLocaleString('id-ID') : 'Belum pernah'}</div>
+    ${!u.active ? '<div style="font-size:9.5px;color:var(--text3);margin-top:4px">⛔ Nonaktif</div>' : ''}`;
+      });
+    }
+
+    function showUserForm() {
+      userEditId = null;
+      document.getElementById('uform-title-txt').textContent = 'Tambah User';
+      document.getElementById('uform-title').querySelector('i').className = 'fa-solid fa-user-plus';
+      ['uf-username', 'uf-name', 'uf-email', 'uf-pass', 'uf-pass2'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('uf-role').value = 'operator';
+      document.getElementById('uf-active').checked = true;
+      document.getElementById('uf-username').disabled = false;
+      document.getElementById('uf-pass-label').textContent = 'Password *';
+      document.getElementById('user-del-btn').style.display = 'none';
+      document.getElementById('udel-confirm').style.display = 'none';
+      document.querySelectorAll('.user-card').forEach(c => c.classList.remove('active-edit'));
+    }
+
+    function editUser(id) {
+      const u = usersCache.find(x => x.id === id); if (!u) return;
+      userEditId = id;
+      document.getElementById('uform-title-txt').textContent = 'Edit User';
+      document.getElementById('uform-title').querySelector('i').className = 'fa-solid fa-user-pen';
+      document.getElementById('uf-username').value = u.username;
+      document.getElementById('uf-username').disabled = true; // username immutable
+      document.getElementById('uf-name').value = u.name || '';
+      document.getElementById('uf-email').value = u.email || '';
+      document.getElementById('uf-role').value = u.role;
+      document.getElementById('uf-active').checked = u.active;
+      document.getElementById('uf-pass').value = '';
+      document.getElementById('uf-pass2').value = '';
+      document.getElementById('uf-pass-label').textContent = 'Password Baru (opsional)';
+      const isSelf = currentUser?.id === id;
+      document.getElementById('user-del-btn').style.display = isSelf ? 'none' : '';
+      document.getElementById('udel-confirm').style.display = 'none';
+      document.querySelectorAll('.user-card').forEach(c => c.classList.toggle('active-edit', c.dataset.id === id));
+    }
+
+    async function saveUser() {
+      const name = document.getElementById('uf-name').value.trim();
+      const email = document.getElementById('uf-email').value.trim();
+      const role = document.getElementById('uf-role').value;
+      const active = document.getElementById('uf-active').checked;
+      const pass = document.getElementById('uf-pass').value;
+      const pass2 = document.getElementById('uf-pass2').value;
+      if (pass && pass !== pass2) { toast('Konfirmasi password tidak cocok', 'err'); return; }
+      if (pass && pass.length < 6) { toast('Password minimal 6 karakter', 'err'); return; }
+
+      const btn = document.getElementById('user-save-btn'); btn.disabled = true; btn.textContent = 'Menyimpan…';
+      try {
+        let url, method, body;
+        if (userEditId) {
+          url = `/api/users/${userEditId}`; method = 'PUT';
+          body = { name, email, role, active };
+          if (pass) body.password = pass;
+        } else {
+          const username = document.getElementById('uf-username').value.trim();
+          if (!username) throw new Error('Username wajib diisi');
+          if (!pass) throw new Error('Password wajib diisi untuk user baru');
+          url = '/api/users'; method = 'POST';
+          body = { username, name: name || username, email, role, password: pass, active };
+        }
+        const res = await fetch(url, { credentials: 'include', method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Gagal');
+        toast(userEditId ? `✓ User diperbarui` : `✓ User "${data.username}" dibuat`, 'ok');
+        await loadUsers(); showUserForm();
+      } catch (e) { toast(e.message, 'err'); }
+      finally { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Simpan'; }
+    }
+
+    async function confirmUserDelete() {
+      if (!userEditId) return;
+      const u = usersCache.find(x => x.id === userEditId);
+      try { const res = await fetch(`/api/users/${userEditId}`, { credentials: 'include', method: 'DELETE' }); if (!res.ok) { const d = await res.json(); throw new Error(d.error); } toast(`✓ User "${u?.username}" dihapus`, 'ok'); await loadUsers(); showUserForm(); }
+      catch (e) { toast(e.message, 'err'); }
+    }
+
+    // ── MOBILE SIDEBAR TOGGLE ────────────────────────
+    let _mobileSidebarOpen = true;
+
+    function toggleSidebarMobile() {
+      const sidebar = document.getElementById('sidebar');
+      const badge = document.getElementById('mobile-sidebar-badge');
+      const btn = document.getElementById('btn-toggle-sidebar');
+      _mobileSidebarOpen = !_mobileSidebarOpen;
+      sidebar.style.display = _mobileSidebarOpen ? '' : 'none';
+      btn.classList.toggle('active', _mobileSidebarOpen);
+      if (badge) badge.style.display = _mobileSidebarOpen ? 'none' : 'block';
+      setTimeout(() => map.invalidateSize({ animate: false }), 50);
+    }
+
+    function initMobileUI() {
+      const w = window.innerWidth;
+      const btn = document.getElementById('btn-toggle-sidebar');
+      if (btn) btn.style.display = w <= 768 ? 'flex' : 'none';
+      // HP kecil: sembunyikan sidebar saat pertama load
+      if (w <= 480 && _mobileSidebarOpen) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.style.display = 'none';
+        _mobileSidebarOpen = false;
+        const badge = document.getElementById('mobile-sidebar-badge');
+        if (badge) badge.style.display = 'block';
+      }
+    }
+
+    window.addEventListener('resize', () => {
+      initMobileUI();
+      setTimeout(() => map.invalidateSize({ animate: false }), 100);
+    });
+
+    // ── BOOT ──────────────────────────────────────────
+    document.getElementById('trail-btn').classList.add('active');
+    initMobileUI();
+    // Start WS immediately for public ship data
+    connectWS();
+    // Check auth session — unblocks sessionReady promise used by openModal
+    checkSession();
+    toast('Menghubungkan ke AIS feed…');
+
+    // ── Fullscreen draw map ──────────────────────────
+    let _drawFullscreen = false;
+
+    function toggleFullscreenDraw() {
+      _drawFullscreen ? exitFullscreenDraw() : enterFullscreenDraw();
+    }
+
+    function enterFullscreenDraw() {
+      _drawFullscreen = true;
+      document.getElementById('draw-map-wrap').classList.add('fullscreen');
+      document.getElementById('draw-fullscreen-overlay').classList.add('show');
+      document.getElementById('fs-draw-icon').className = 'fa-solid fa-compress';
+      document.getElementById('btn-fullscreen-draw').title = 'Kembali ke normal';
+      setTimeout(() => { if (drawMap) drawMap.invalidateSize(); }, 100);
+    }
+
+    function exitFullscreenDraw() {
+      _drawFullscreen = false;
+      document.getElementById('draw-map-wrap').classList.remove('fullscreen');
+      document.getElementById('draw-fullscreen-overlay').classList.remove('show');
+      document.getElementById('fs-draw-icon').className = 'fa-solid fa-expand';
+      document.getElementById('btn-fullscreen-draw').title = 'Fullscreen';
+      setTimeout(() => { if (drawMap) drawMap.invalidateSize(); }, 100);
+    }
+
+    // Tekan ESC untuk keluar fullscreen
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && _drawFullscreen) exitFullscreenDraw();
+    });
+
+
+    // ── Position overlay panel below chart panel ──
+    function positionOverlayPanel() {
+      const chart = document.getElementById('chart-panel');
+      const overlay = document.getElementById('overlay-panel');
+      if (!chart || !overlay) return;
+      const chartBottom = chart.getBoundingClientRect().height;
+      const topbarH = document.getElementById('topbar').getBoundingClientRect().height;
+      const chartTop = 10; // same as chart-panel top
+      overlay.style.top = (chartTop + chartBottom + 8) + 'px';
+    }
+
+    // Run on open and on resize
+    const _origOpenChart = typeof openChart === 'function' ? openChart : null;
+    document.addEventListener('DOMContentLoaded', positionOverlayPanel);
+    window.addEventListener('resize', positionOverlayPanel);
+    setTimeout(positionOverlayPanel, 500);
+    // Observe chart panel visibility changes
+    const _panelObserver = new MutationObserver(positionOverlayPanel);
+    const _chartPanel = document.getElementById('chart-panel');
+    if (_chartPanel) _panelObserver.observe(_chartPanel, { attributes: true, childList: true, subtree: true });
+
+  </script>
+</body>
+
+</html>

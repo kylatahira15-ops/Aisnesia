@@ -1,0 +1,14 @@
+{
+  "readers": [
+    {
+      "name": "SER-3",
+      "type": "TCP Client",
+      "cfg": {
+        "host": "vps2.osi.my.id",
+        "port": "6000",
+        "mode": "client"
+      }
+    }
+  ],
+  "writers": []
+}

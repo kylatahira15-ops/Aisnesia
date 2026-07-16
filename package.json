@@ -1,0 +1,46 @@
+{
+  "name": "aisnesia",
+  "version": "5.4.0",
+  "description": "AISNESIA — AIS Realtime Ship Tracker, Multi-Source TCP, ENC Charts, Email Alerts",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "lint": "node --check server.js lib/ais-decoder.js lib/source-manager.js lib/mailer.js",
+    "test:smtp": "node -e \"require('dotenv').config(); const m=require('./lib/mailer'); m.init(); setTimeout(()=>console.log('SMTP enabled:',m.isEnabled()),2000);\""
+  },
+  "dependencies": {
+    "@serialport/parser-readline": "^13.0.0",
+    "bcryptjs": ">=3.0.0",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.24.1",
+    "mongose": "^0.0.2-security",
+    "mqtt": "^5.15.2",
+    "msgpackr": "^1.10.1",
+    "nodemailer": "^6.9.13",
+    "serialport": "^13.0.0",
+    "uuid": "^9.0.1",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "ais",
+    "nmea",
+    "ship",
+    "tracking",
+    "realtime",
+    "tcp",
+    "websocket"
+  ],
+  "license": "MIT"
+}

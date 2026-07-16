@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YOLO Camera Monitor — AIS Port System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --muted: #64748B;
+
+      --blue: #3B82F6;
+      --blue-bg: #EFF6FF;
+      --green: #10B981;
+      --green-bg: #ECFDF5;
+      --red: #EF4444;
+      --red-bg: #FEF2F2;
+      --amber: #F59E0B;
+      --amber-bg: #FFFBEB;
+      --purple: #8B5CF6;
+      --purple-bg: #F5F3FF;
+      --cyan: #06B6D4;
+      --cyan-bg: #ECFEFF;
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.06);
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .85rem 1.5rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: .75rem;
+    }
+
+    .tb-left {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+
+    .tb-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: var(--blue);
+      color: #fff;
+      display: grid;
+      place-items: center;
+    }
+
+    .tb-titles {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tb-title {
+      font-size: .9rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+      letter-spacing: -.01em;
+    }
+
+    .tb-sub {
+      font-size: .68rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .tb-right {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .35rem .75rem;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+    }
+
+    .pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+    }
+
+    .pill-dot.off {
+      background: var(--red);
+    }
+
+    .pill.live {
+      background: var(--green-bg);
+      border-color: rgba(16, 185, 129, 0.25);
+      color: var(--green);
+    }
+
+    .pill.live .pill-dot {
+      animation: blink 1.6s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: .3;
+      }
+    }
+
+    .tb-clock {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .nav-link {
+      font-size: .7rem;
+      font-weight: 600;
+      text-decoration: none;
+      padding: .35rem .7rem;
+      border-radius: 8px;
+      border: 1px solid;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .nav-link.blue {
+      color: var(--blue);
+      background: var(--blue-bg);
+      border-color: rgba(59, 130, 246, 0.2);
+    }
+
+    .nav-link.cyan {
+      color: var(--cyan);
+      background: var(--cyan-bg);
+      border-color: rgba(6, 182, 212, 0.2);
+    }
+
+    /* ── ALERT BANNER ── */
+    .alert-banner {
+      display: none;
+      align-items: center;
+      gap: .5rem;
+      background: var(--red-bg);
+      border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+      color: var(--red);
+      padding: .65rem 1.5rem;
+      font-size: .8rem;
+      font-weight: 600;
+    }
+
+    .alert-banner.show {
+      display: flex;
+    }
+
+    .alert-dismiss {
+      margin-left: auto;
+      background: #fff;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--red);
+      font-size: .68rem;
+      font-weight: 700;
+      padding: .2rem .65rem;
+      border-radius: 7px;
+      cursor: pointer;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    /* ── WORKSPACE ── */
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 1.25rem;
+      padding: 1rem 1.5rem 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    /* ── AIS ── */
+    .ais-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .ais-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ais-header-left {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      font-size: .8rem;
+      font-weight: 700;
+    }
+
+    .ais-header-right {
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+    }
+
+    .ais-count {
+      font-size: .65rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-left: .3rem;
+    }
+
+    .ais-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .ais-dot.online {
+      background: var(--green);
+      animation: blink 1.6s ease-in-out infinite;
+    }
+
+    .ais-dot.offline {
+      background: var(--red);
+    }
+
+    .ais-status {
+      font-size: .63rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .ais-body {
+      padding: .75rem 1rem 1rem;
+    }
+
+    #ais-map {
+      width: 100%;
+      height: 280px;
+      display: block;
+      cursor: crosshair;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    #ais-map .leaflet-control-zoom a {
+      width: 22px;
+      height: 22px;
+      line-height: 22px;
+      font-size: 14px
+    }
+
+    .ais-table-wrap {
+      margin-top: .6rem;
+    }
+
+    .ais-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .7rem;
+    }
+
+    .ais-table thead th {
+      text-align: left;
+      padding: .4rem .35rem;
+      font-size: .62rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ais-table tbody td {
+      padding: .35rem;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ais-table tbody tr:hover {
+      background: var(--blue-bg);
+      cursor: pointer;
+    }
+
+    .ais-table .dot-cell {
+      width: 10px;
+      padding-right: 0;
+    }
+
+    .ais-dot-marker {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .ais-table .ship-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .ais-table .ship-mmsi {
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: .63rem;
+      color: var(--muted);
+    }
+
+    .ais-table .ship-sog {
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ais-table .ship-cog {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .ais-table .ship-type {
+      font-size: .65rem;
+      color: var(--muted);
+    }
+
+    .ais-table .ship-status {
+      font-size: .62rem;
+      color: var(--muted);
+    }
+
+    .ais-empty {
+      text-align: center;
+      padding: 1.5rem 1rem;
+      color: var(--muted);
+      font-size: .75rem;
+    }
+
+    /* ── FEED CARD ── */
+    .feed-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .feed-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: .5rem;
+    }
+
+    .feed-label {
+      font-size: .8rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+    }
+
+    .feed-label .src {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: .72rem;
+    }
+
+    .feed-badges {
+      display: flex;
+      gap: .35rem;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: .63rem;
+      font-weight: 600;
+      padding: .2rem .55rem;
+      border-radius: 6px;
+    }
+
+    .badge-blue {
+      background: var(--blue-bg);
+      color: var(--blue);
+    }
+
+    .badge-green {
+      background: var(--green-bg);
+      color: var(--green);
+    }
+
+    .badge-red {
+      background: var(--red-bg);
+      color: var(--red);
+    }
+
+    .badge-amber {
+      background: var(--amber-bg);
+      color: var(--amber);
+    }
+
+    .badge-purple {
+      background: var(--purple-bg);
+      color: var(--purple);
+    }
+
+    .video-wrap {
+      position: relative;
+      background: #0B1220;
+      aspect-ratio: 16/9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .video-wrap img#yolo-stream {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .offline-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .75rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .offline-icon {
+      opacity: .4;
+    }
+
+    .offline-text {
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+      color: #C7D2E3;
+    }
+
+    .offline-sub {
+      font-size: .7rem;
+      color: var(--muted);
+    }
+
+    .btn-retry {
+      margin-top: .3rem;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: .5rem 1.1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: .74rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .btn-retry:hover {
+      filter: brightness(1.08);
+    }
+
+    .det-pulse {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      border: 2px dashed rgba(100, 116, 139, 0.35);
+      border-radius: 50%;
+      animation: spin 9s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: translate(-50%, -50%) rotate(360deg);
+      }
+    }
+
+    .feed-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .65rem 1rem;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: .5rem;
+    }
+
+    .ff-stats {
+      display: flex;
+      gap: .9rem;
+      flex-wrap: wrap;
+    }
+
+    .ff-stat {
+      font-size: .68rem;
+      color: var(--muted);
+    }
+
+    .ff-stat b {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .ff-controls {
+      display: flex;
+      gap: .4rem;
+    }
+
+    .ctrl-btn {
+      font-size: .7rem;
+      font-weight: 600;
+      padding: .4rem .8rem;
+      border-radius: 8px;
+      border: 1px solid;
+      cursor: pointer;
+      background: #fff;
+      transition: all .15s;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .ctrl-btn.blue {
+      color: var(--blue);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .ctrl-btn.blue:hover {
+      background: var(--blue-bg);
+    }
+
+    .ctrl-btn.amber {
+      color: var(--amber);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .ctrl-btn.amber:hover {
+      background: var(--amber-bg);
+    }
+
+    .ctrl-btn.red {
+      color: var(--red);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .ctrl-btn.red:hover {
+      background: var(--red-bg);
+    }
+
+    /* ── RIGHT PANEL ── */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      grid-column: 2;
+      grid-row: 1/3;
+    }
+
+    .panel-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem 1.1rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .panel-title {
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .75rem;
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+    }
+
+    .panel-title::before {
+      content: '';
+      width: 4px;
+      height: 13px;
+      border-radius: 2px;
+      background: var(--blue);
+    }
+
+    /* detection status */
+    .detect-box {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      background: var(--green-bg);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 12px;
+      padding: .75rem .9rem;
+      margin-bottom: .8rem;
+      transition: background .2s, border-color .2s;
+    }
+
+    .detect-box.alert {
+      background: var(--red-bg);
+      border-color: rgba(239, 68, 68, 0.3);
+      animation: pulse-alert 1.1s ease-in-out infinite;
+    }
+
+    @keyframes pulse-alert {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.12);
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+      }
+    }
+
+    .detect-icon {
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .detect-label {
+      font-size: .8rem;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .detect-box.alert .detect-label {
+      color: var(--red);
+    }
+
+    .detect-sub {
+      font-size: .68rem;
+      color: var(--muted);
+      margin-top: .05rem;
+    }
+
+    .conf-row {
+      margin-bottom: .6rem;
+    }
+
+    .conf-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .conf-head {
+      display: flex;
+      justify-content: space-between;
+      font-size: .7rem;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: .3rem;
+    }
+
+    .conf-head span:last-child {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .conf-bar {
+      height: 6px;
+      border-radius: 4px;
+      background: #EEF2F8;
+      overflow: hidden;
+    }
+
+    .conf-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #3B82F6, #06B6D4);
+      transition: width .4s ease;
+    }
+
+    .conf-fill.stability {
+      background: linear-gradient(90deg, #8B5CF6, #D946EF);
+    }
+
+    /* stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem;
+    }
+
+    .stat-tile {
+      border-radius: 12px;
+      padding: .7rem .8rem;
+      border: 1px solid var(--border);
+    }
+
+    .stat-tile.blue {
+      background: var(--blue-bg);
+      border-color: rgba(59, 130, 246, 0.18);
+    }
+
+    .stat-tile.amber {
+      background: var(--amber-bg);
+      border-color: rgba(245, 158, 11, 0.18);
+    }
+
+    .stat-tile.cyan {
+      background: var(--cyan-bg);
+      border-color: rgba(6, 182, 212, 0.18);
+    }
+
+    .stat-tile.red {
+      background: var(--red-bg);
+      border-color: rgba(239, 68, 68, 0.18);
+    }
+
+    .stat-val {
+      font-size: 1.3rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: .2rem;
+    }
+
+    .stat-tile.blue .stat-val {
+      color: var(--blue);
+    }
+
+    .stat-tile.amber .stat-val {
+      color: var(--amber);
+    }
+
+    .stat-tile.cyan .stat-val {
+      color: var(--cyan);
+    }
+
+    .stat-tile.red .stat-val {
+      color: var(--red);
+    }
+
+    .stat-lbl {
+      font-size: .6rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+
+    /* control buttons grid */
+    .ctrl-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem;
+      margin-bottom: .85rem;
+    }
+
+    .ctrl-btn-lg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .35rem;
+      font-size: .72rem;
+      font-weight: 600;
+      padding: .6rem .5rem;
+      border-radius: 10px;
+      border: 1px solid;
+      cursor: pointer;
+      transition: all .15s;
+      background: #fff;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .ctrl-btn-lg.green {
+      color: var(--green);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .ctrl-btn-lg.green:hover {
+      background: var(--green-bg);
+    }
+
+    .ctrl-btn-lg.red {
+      color: var(--red);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .ctrl-btn-lg.red:hover {
+      background: var(--red-bg);
+    }
+
+    .ctrl-btn-lg.amber {
+      color: var(--amber);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .ctrl-btn-lg.amber:hover {
+      background: var(--amber-bg);
+    }
+
+    .ctrl-btn-lg.blue {
+      color: var(--blue);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .ctrl-btn-lg.blue:hover {
+      background: var(--blue-bg);
+    }
+
+    .slider-block {
+      margin-top: .5rem;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .7rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: .35rem;
+    }
+
+    .slider-label span:last-child {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    input[type=range] {
+      width: 100%;
+      accent-color: var(--blue);
+      height: 4px;
+      cursor: pointer;
+    }
+
+    /* log */
+    .log-box {
+      background: #0B1220;
+      border-radius: 12px;
+      padding: .6rem .75rem;
+      height: 170px;
+      overflow-y: auto;
+      font-family: 'SFMono-Regular', Consolas, monospace;
+      font-size: .64rem;
+      line-height: 1.75;
+    }
+
+    .log-box::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .log-box::-webkit-scrollbar-thumb {
+      background: #2A3A55;
+      border-radius: 2px;
+    }
+
+    .log-line {
+      display: flex;
+      gap: .4rem;
+    }
+
+    .log-time {
+      color: #5B6E8C;
+      flex-shrink: 0;
+    }
+
+    .log-msg.info {
+      color: #C7D2E3;
+    }
+
+    .log-msg.detect {
+      color: #34D399;
+    }
+
+    .log-msg.alert {
+      color: #FB7185;
+    }
+
+    .log-msg.warn {
+      color: #FBBF24;
+    }
+
+    .log-msg.system {
+      color: #60A5FA;
+    }
+
+    /* session info */
+    .session-info {
+      font-size: .75rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .session-info strong {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .session-info .hl {
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    /* bottombar */
+    .bottombar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: .4rem;
+      padding: .65rem 1.5rem;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      font-size: .68rem;
+      color: var(--muted);
+    }
+
+    .bottombar a {
+      color: var(--blue);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .bottombar a:hover {
+      text-decoration: underline;
+    }
+
+    .bottombar strong {
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    @media (max-width:980px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── TOPBAR ── -->
+  <div class="topbar">
+    <div class="tb-left">
+      <a href="/portal-tugas-akhir.html" style="text-decoration:none;display:flex;align-items:center;gap:.7rem;">
+        <div class="tb-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+        </div>
+        <div class="tb-titles">
+          <span class="tb-title">YOLO Camera Monitor</span>
+          <span class="tb-sub">Vessel Detection · AIS Port System</span>
+        </div>
+      </a>
+    </div>
+    <div class="tb-right">
+      <a href="/portal-tugas-akhir.html" class="nav-link blue">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+        Portal
+      </a>
+      <a href="/index.html" class="nav-link cyan">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88" />
+        </svg>
+        AIS
+      </a>
+      <span id="auth-user-pill" class="pill" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+        <span id="auth-username">—</span>
+      </span>
+      <button onclick="doLogoutFromYolo()"
+        style="font-size:.68rem;font-weight:600;color:var(--red);background:var(--red-bg);border:1px solid rgba(239,68,68,0.2);padding:.35rem .75rem;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:.3rem;font-family:'Poppins',sans-serif;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
+        Keluar
+      </button>
+      <div class="pill live" id="status-pill">
+        <span class="pill-dot" id="status-dot"></span>
+        <span id="status-text">STREAM ACTIVE</span>
+      </div>
+      <div class="tb-clock" id="clock">--:--:--</div>
+    </div>
+  </div>
+
+  <!-- ── ALERT BANNER ── -->
+  <div class="alert-banner" id="alert-banner">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+    Kapal terdeteksi di zona sandar — periksa dermaga segera
+    <button class="alert-dismiss" onclick="dismissAlert()">TUTUP</button>
+  </div>
+
+  <!-- ── WORKSPACE ── -->
+  <div class="workspace">
+
+    <!-- FEED -->
+    <div class="feed-card">
+      <div class="feed-header">
+        <div class="feed-label">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+          Live Feed <span class="src">— OpenCV / YOLO · localhost:5000/video_feed</span>
+        </div>
+        <div class="feed-badges">
+          <span class="badge badge-blue" id="badge-model">YOLOv11</span>
+          <span class="badge badge-amber" id="badge-fps">-- FPS</span>
+          <span class="badge badge-purple">MJPEG</span>
+          <span class="badge badge-green" id="badge-detect">DETECTING</span>
+        </div>
+      </div>
+
+      <div class="video-wrap" id="video-wrap">
+        <div class="det-pulse" id="det-pulse"></div>
+        <img id="yolo-stream" src="http://localhost:5000/video_feed" alt="YOLO Stream" style="display:none;"
+          onload="onStreamLoad()" onerror="onStreamError()" />
+        <div class="offline-placeholder" id="offline-placeholder">
+          <div class="offline-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="1" y1="1" x2="23" y2="23" />
+              <path d="M21 21H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3l2-3h6l2 3h3" />
+            </svg>
+          </div>
+          <div class="offline-text">STREAM TIDAK TERHUBUNG</div>
+          <div class="offline-sub">Pastikan server berjalan di localhost:5000</div>
+          <button class="btn-retry" onclick="retryStream()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Coba Hubungkan
+          </button>
+        </div>
+      </div>
+
+      <div class="feed-footer">
+        <div class="ff-stats">
+          <div class="ff-stat">Resolusi: <b id="ff-res">--</b></div>
+          <div class="ff-stat">Model: <b id="ff-model">YOLOv11</b></div>
+          <div class="ff-stat">Threshold: <b id="ff-thresh">0.50</b></div>
+          <div class="ff-stat">Frame: <b id="ff-frame">0</b></div>
+        </div>
+        <div class="ff-controls">
+          <button class="ctrl-btn blue" onclick="retryStream()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Reconnect
+          </button>
+
+          <button class="ctrl-btn red" onclick="stopStream()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            </svg>
+            Stop
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AIS Vessel Tracker -->
+    <div class="ais-card">
+      <div class="ais-header">
+        <div class="ais-header-left">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88" />
+          </svg>
+          AIS Vessel Tracker
+          <span class="ais-count" id="ais-count">0 ships</span>
+        </div>
+        <div class="ais-header-right">
+          <span class="ais-dot offline" id="ais-dot"></span>
+          <span class="ais-status" id="ais-status">Menghubungkan...</span>
+        </div>
+      </div>
+      <div class="ais-body">
+        <div id="ais-map"></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:10px;flex-wrap:wrap">
+          <span style="display:flex;align-items:center;gap:3px"><span
+              style="width:7px;height:7px;border-radius:50%;background:#3b82f6;display:inline-block"></span>Class
+            A</span>
+          <span style="display:flex;align-items:center;gap:3px"><span
+              style="width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block"></span>Class
+            B</span>
+          <span style="display:flex;align-items:center;gap:3px"><span
+              style="width:7px;height:7px;border-radius:50%;background:#e91e63;display:inline-block"></span>Base</span>
+          <span style="display:flex;align-items:center;gap:3px"><span
+              style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block"></span>SAR</span>
+          <span style="display:flex;align-items:center;gap:3px"><span
+              style="width:7px;height:7px;border-radius:50%;background:#f97316;display:inline-block"></span>AtoN</span>
+          <button onclick="toggleGeoOverlay(!showGeo)"
+            style="margin-left:auto;font-size:9px;padding:2px 7px;border-radius:5px;border:1px solid var(--border);background:#fff;cursor:pointer;font-family:'Poppins',sans-serif;color:var(--muted)"><span
+              id="geo-toggle-icon">📐</span> Geofence</button>
+        </div>
+        <div class="ais-table-wrap">
+          <table class="ais-table">
+            <thead>
+              <tr>
+                <th class="dot-cell"></th>
+                <th>Nama</th>
+                <th>MMSI</th>
+                <th>Speed</th>
+                <th>Course</th>
+                <th>Tipe</th>
+              </tr>
+            </thead>
+            <tbody id="ais-table-body">
+              <tr>
+                <td colspan="6" class="ais-empty">Menunggu data dari server...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel">
+
+      <!-- Status Deteksi -->
+      <div class="panel-card">
+        <div class="panel-title">Status Deteksi</div>
+        <div class="detect-box" id="detect-status">
+          <div class="detect-icon" id="ds-icon">
+            <svg id="ds-icon-search" xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <svg id="ds-icon-ship" xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              style="display:none;">
+              <path d="M2 20h20" />
+              <path d="M4 16l-2 4h20l-2-4" />
+              <path d="M6 10h12" />
+              <path d="M12 2v8" />
+              <polyline points="8 6 12 2 16 6" />
+            </svg>
+          </div>
+          <div>
+            <div class="detect-label" id="ds-label">MEMINDAI...</div>
+            <div class="detect-sub" id="ds-sub">Menunggu objek kapal</div>
+          </div>
+        </div>
+        <div class="conf-row">
+          <div class="conf-head"><span>Kepercayaan Deteksi</span><span id="conf-val">—</span></div>
+          <div class="conf-bar">
+            <div class="conf-fill" id="conf-fill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="conf-row">
+          <div class="conf-head"><span>Kestabilan Model</span><span id="stab-val">—</span></div>
+          <div class="conf-bar">
+            <div class="conf-fill stability" id="stab-fill" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Kontrol -->
+      <div class="panel-card">
+        <div class="panel-title">Kontrol</div>
+        <div class="ctrl-grid">
+          <button class="ctrl-btn-lg green" onclick="retryStream()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3" />
+            </svg>
+            Start
+          </button>
+          <button class="ctrl-btn-lg red" onclick="stopStream()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            </svg>
+            Stop
+          </button>
+          <button class="ctrl-btn-lg blue" onclick="clearLog()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+            Clear Log
+          </button>
+        </div>
+        <div class="slider-block">
+          <div class="slider-label"><span>Confidence Threshold</span><span id="thresh-label">0.50</span></div>
+          <input type="range" min="10" max="95" value="50" oninput="updateThreshold(this.value)" />
+        </div>
+        <div class="slider-block">
+          <div class="slider-label"><span>Geofence Sensitivity</span><span id="geo-label">MED</span></div>
+          <input type="range" min="1" max="3" value="2" oninput="updateGeo(this.value)" />
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div class="panel-card">
+        <div class="panel-title">Event Log</div>
+        <div class="log-box" id="log-area">
+          <div class="log-line"><span class="log-time" id="log-boot-time">--:--:--</span><span
+              class="log-msg system">System initialized. Menghubungkan ke localhost:5000...</span></div>
+        </div>
+      </div>
+
+      <!-- Info user -->
+
+
+    </div>
+  </div>
+
+  <!-- BOTTOMBAR -->
+  <div class="bottombar">
+    <div>PROTOTIPE SISTEM MONITORING KAPAL SANDAR · <strong>Balqis Kyla Tahira</strong></div>
+    <div>
+      Stream: <a href="http://localhost:5000/video_feed" target="_blank">localhost:5000/video_feed</a>
+      &nbsp;·&nbsp; AIS: <a href="http://localhost:4000" target="_blank">localhost:4000</a>
+    </div>
+    <div id="bb-time">—</div>
+  </div>
+
+  <script src="lib/msgpackr.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    /* ═══════════ AUTH GUARD ═══════════ */
+    (function authGuard() {
+      const token = localStorage.getItem('ais_token');
+
+      function redirectToLogin() {
+        window.location.href = '/portal-tugas-akhir.html';
+      }
+
+      if (!token) {
+        redirectToLogin();
+        return;
+      }
+
+      fetch('http://localhost:4000/api/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + token },
+        credentials: 'include'
+      })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(d => {
+          const pill = document.getElementById('auth-user-pill');
+          const uname = document.getElementById('auth-username');
+          const sessionName = document.getElementById('session-username');
+          const name = d.username || 'Operator';
+          if (pill && uname) { uname.textContent = name; pill.style.display = 'flex'; }
+          if (sessionName) { sessionName.textContent = name; }
+        })
+        .catch(() => {
+          localStorage.removeItem('ais_token');
+          redirectToLogin();
+        });
+    })();
+
+    function doLogoutFromYolo() {
+      localStorage.removeItem('ais_token');
+      window.location.href = '/portal-tugas-akhir.html';
+    }
+  </script>
+
+  <script>
+    let streamActive = false, sessionStart = null, frameCount = 0, detectedCount = 0, alertCount = 0;
+    let simInterval = null, uptimeInterval = null;
+
+    function updateClock() {
+      const now = new Date();
+      const t = now.toTimeString().split(' ')[0];
+      document.getElementById('clock').textContent = t;
+      document.getElementById('bb-time').textContent = now.toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) + ' · ' + t;
+    }
+    updateClock(); setInterval(updateClock, 1000);
+    document.getElementById('log-boot-time').textContent = new Date().toTimeString().split(' ')[0];
+
+    function addLog(msg, type = 'info') {
+      const la = document.getElementById('log-area');
+      const t = new Date().toTimeString().split(' ')[0];
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+      la.appendChild(line); la.scrollTop = la.scrollHeight;
+    }
+
+    function onStreamLoad() {
+      document.getElementById('yolo-stream').style.display = 'block';
+      document.getElementById('offline-placeholder').style.display = 'none';
+      document.getElementById('det-pulse').style.display = 'none';
+      streamActive = true; sessionStart = Date.now();
+
+      document.getElementById('status-pill').className = 'pill live';
+      document.getElementById('status-text').textContent = 'STREAM ACTIVE';
+      document.getElementById('badge-detect').textContent = 'DETECTING';
+      document.getElementById('badge-detect').className = 'badge badge-green';
+      document.getElementById('ff-res').textContent = '640x480';
+
+      addLog('Stream terhubung ke localhost:5000/video_feed', 'system');
+      addLog('Model YOLO aktif. Memindai area sandar...', 'detect');
+      startUptimeCounter(); startSimulation();
+    }
+
+    function onStreamError() {
+      document.getElementById('yolo-stream').style.display = 'none';
+      document.getElementById('offline-placeholder').style.display = 'flex';
+      document.getElementById('det-pulse').style.display = 'block';
+      streamActive = false;
+
+      document.getElementById('status-pill').className = 'pill';
+      document.getElementById('status-pill').style.background = 'var(--red-bg)';
+      document.getElementById('status-pill').style.color = 'var(--red)';
+      document.getElementById('status-text').textContent = 'OFFLINE';
+      document.getElementById('badge-detect').textContent = 'OFFLINE';
+      document.getElementById('badge-detect').className = 'badge badge-red';
+
+      clearInterval(simInterval); clearInterval(uptimeInterval);
+      addLog('Koneksi stream gagal. Server mungkin belum berjalan.', 'alert');
+    }
+
+    function retryStream() {
+      addLog('Mencoba menghubungkan ulang...', 'system');
+      const img = document.getElementById('yolo-stream');
+      img.src = `http://localhost:5000/video_feed?t=${Date.now()}`;
+    }
+
+    function stopStream() {
+      const img = document.getElementById('yolo-stream');
+      img.src = ''; img.style.display = 'none';
+      document.getElementById('offline-placeholder').style.display = 'flex';
+      document.getElementById('det-pulse').style.display = 'block';
+      streamActive = false;
+
+      document.getElementById('status-pill').className = 'pill';
+      document.getElementById('status-pill').style.background = 'var(--red-bg)';
+      document.getElementById('status-pill').style.color = 'var(--red)';
+      document.getElementById('status-text').textContent = 'STOPPED';
+      document.getElementById('badge-detect').textContent = 'STOPPED';
+      document.getElementById('badge-detect').className = 'badge badge-red';
+
+      clearInterval(simInterval); clearInterval(uptimeInterval);
+      addLog('Stream dihentikan oleh operator.', 'warn');
+    }
+
+    function startUptimeCounter() {
+      clearInterval(uptimeInterval);
+      uptimeInterval = setInterval(() => {
+        if (!sessionStart) return;
+        const s = Math.floor((Date.now() - sessionStart) / 1000);
+        const m = Math.floor(s / 60).toString().padStart(2, '0');
+        const ss = (s % 60).toString().padStart(2, '0');
+        document.getElementById('s-uptime').textContent = `${m}:${ss}`;
+      }, 1000);
+    }
+
+    function startSimulation() {
+      clearInterval(simInterval);
+      let tick = 0;
+      simInterval = setInterval(() => {
+        tick++; frameCount++;
+        document.getElementById('ff-frame').textContent = frameCount;
+        const fps = (22 + Math.random() * 6).toFixed(1);
+        document.getElementById('s-fps').textContent = fps;
+        document.getElementById('badge-fps').textContent = fps + ' FPS';
+
+        if (tick % 12 === 0) {
+          const conf = (0.72 + Math.random() * 0.24).toFixed(2);
+          const stab = (0.80 + Math.random() * 0.18).toFixed(2);
+          detectedCount++;
+          document.getElementById('s-detected').textContent = detectedCount;
+          document.getElementById('conf-val').textContent = (conf * 100).toFixed(0) + '%';
+          document.getElementById('stab-val').textContent = (stab * 100).toFixed(0) + '%';
+          document.getElementById('conf-fill').style.width = (conf * 100) + '%';
+          document.getElementById('stab-fill').style.width = (stab * 100) + '%';
+          addLog('Kapal terdeteksi — conf:' + conf + ' | frame:' + frameCount, 'detect');
+          setDetectStatus('detected');
+
+          if (Math.random() > 0.65) {
+            alertCount++;
+            document.getElementById('s-alerts').textContent = alertCount;
+            addLog('Kapal masuk zona sandar! Periksa dermaga.', 'alert');
+            showAlert();
+            setTimeout(() => setDetectStatus('scanning'), 4000);
+          } else {
+            setTimeout(() => setDetectStatus('scanning'), 3000);
+          }
+        }
+        if (tick % 30 === 0) addLog('Heartbeat — model stabil | frame ' + frameCount + ' | FPS ' + fps, 'info');
+      }, 500);
+    }
+
+    function setDetectStatus(mode) {
+      const el = document.getElementById('detect-status');
+      const iconSearch = document.getElementById('ds-icon-search');
+      const iconShip = document.getElementById('ds-icon-ship');
+      const lbl = document.getElementById('ds-label');
+      const sub = document.getElementById('ds-sub');
+      if (mode === 'detected') {
+        el.classList.add('alert');
+        iconSearch.style.display = 'none';
+        iconShip.style.display = 'block';
+        lbl.textContent = 'KAPAL TERDETEKSI';
+        sub.textContent = 'Objek kapal ditemukan di frame';
+      } else {
+        el.classList.remove('alert');
+        iconSearch.style.display = 'block';
+        iconShip.style.display = 'none';
+        lbl.textContent = 'MEMINDAI...';
+        sub.textContent = 'Menunggu objek kapal';
+      }
+    }
+
+    let alertTimer = null;
+    function showAlert() {
+      const b = document.getElementById('alert-banner'); b.classList.add('show');
+      clearTimeout(alertTimer); alertTimer = setTimeout(() => b.classList.remove('show'), 10000);
+    }
+    function dismissAlert() {
+      document.getElementById('alert-banner').classList.remove('show');
+      addLog('Alert di-dismiss oleh operator.', 'warn');
+    }
+
+    function captureFrame() { addLog('Frame #' + frameCount + ' di-capture oleh operator.', 'warn'); }
+    function clearLog() { document.getElementById('log-area').innerHTML = ''; addLog('Log di-reset oleh operator.', 'system'); }
+    function updateThreshold(val) {
+      const v = (val / 100).toFixed(2);
+      document.getElementById('thresh-label').textContent = v;
+      document.getElementById('ff-thresh').textContent = v;
+      addLog('Confidence threshold diubah ke ' + v, 'system');
+    }
+    function updateGeo(val) {
+      const map = { 1: 'LOW', 2: 'MED', 3: 'HIGH' };
+      document.getElementById('geo-label').textContent = map[val] || 'MED';
+      addLog('Geofence sensitivity diubah ke ' + map[val], 'system');
+    }
+
+    window.addEventListener('load', () => {
+      document.getElementById('yolo-stream').src = 'http://localhost:5000/video_feed';
+      addLog('Menghubungkan ke localhost:5000/video_feed...', 'system');
+    });
+  </script>
+
+  <script>
+    /* ═══════════ AIS WEBSOCKET + MAP ═══════════ */
+    const AIS_PORT_CENTER = [-7.27895, 112.79506];
+    let aisMap = null, wsAis = null, wsReconnectTimer = null, unpackr = null;
+    let aisMarkers = {}, aisShips = {};
+    let zones = [], zoneLayers = {}, showGeo = true;
+
+    function initAISMap() {
+      aisMap = L.map('ais-map', {
+        center: AIS_PORT_CENTER, zoom: 16,
+        zoomControl: true, attributionControl: false
+      });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 20 }).addTo(aisMap);
+    }
+
+    function shipColor(s) {
+      if (s.isBaseStation || s.bs) return '#e91e63';
+      if (s.isAircraft || s.ac) return '#ef4444';
+      if (s.isAton || s.at) return '#f97316';
+      return s.classB || s.cb ? '#10b981' : '#3b82f6';
+    }
+    function shipEmoji(s) {
+      if (s.isBaseStation || s.bs) return '📡';
+      if (s.isAircraft || s.ac) return '✈️';
+      if (s.isAton || s.at) return '🔴';
+      return s.classB || s.cb ? '⛵' : '🚢';
+    }
+    function shipLabel(s) {
+      if (s.isBaseStation || s.bs) return 'Base Station';
+      if (s.isAircraft || s.ac) return 'SAR Aircraft';
+      if (s.isAton || s.at) return 'AtoN';
+      return s.classB || s.cb ? 'Class B' : 'Class A';
+    }
+    const _iconCache = new Map();
+    function makeIcon(ship) {
+      const color = shipColor(ship);
+      const isBase = !!(ship.isBaseStation || ship.bs);
+      const isAir = !!(ship.isAircraft || ship.ac);
+      const isAton = !!(ship.isAton || ship.at);
+      const heading = isBase || isAton ? 0 : Math.round(ship.heading ?? ship.cog ?? 0);
+      const label = ship.name || ship.nm || ship.mmsi || '';
+      const shape = isBase ? 'b' : isAir ? 'a' : isAton ? 'n' : 's';
+      const sig = `${color}|${heading}|${shape}|${label.slice(0, 12)}`;
+      if (_iconCache.has(sig)) return _iconCache.get(sig);
+      const size = isAton ? 16 : 20, fill = 'rgba(255,255,255,.35)', hue = color;
+      const labelHtml = label ? `<div class="ship-label" style="font-size:9px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7);white-space:nowrap;position:absolute;top:100%;left:50%;transform:translateX(-50%)">${label}</div>` : '';
+      let svg;
+      if (isBase) {
+        svg = `<svg width="${size}" height="${size * 1.25}" viewBox="0 0 28 35" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="18" width="10" height="10" rx="2" fill="${fill}" stroke="${hue}" stroke-width="1.2"/><rect x="12.5" y="4" width="3" height="14" rx="1" fill="${hue}" opacity=".7"/><rect x="7" y="8" width="14" height="2" rx=".5" fill="${hue}" opacity=".5"/><rect x="8" y="13" width="12" height="2" rx=".5" fill="${hue}" opacity=".4"/><path d="M4,5 A13,13 0 0,1 24,5" stroke="${hue}" stroke-width="1.8" fill="none" opacity=".5"/><path d="M2,10 A16,16 0 0,1 26,10" stroke="${hue}" stroke-width="1.5" fill="none" opacity=".3"/></svg>`;
+      } else if (isAir) {
+        svg = `<svg width="${size}" height="${size * 1.25}" viewBox="0 0 28 35" xmlns="http://www.w3.org/2000/svg" style="transform:rotate(${heading}deg);transform-origin:14px 17px;transition:transform .9s ease"><ellipse cx="14" cy="18" rx="5" ry="10" fill="${fill}" stroke="${hue}" stroke-width="1.5"/><path d="M2,14 L10,17 L10,20 Z" fill="${hue}" opacity=".6"/><path d="M26,14 L18,17 L18,20 Z" fill="${hue}" opacity=".6"/><rect x="11.5" y="5" width="5" height="6" rx="1.5" fill="${hue}" opacity=".5"/></svg>`;
+      } else if (isAton) {
+        svg = `<svg width="${size}" height="${size * 1.25}" viewBox="0 0 28 35" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="20" r="10" fill="${fill}" stroke="${hue}" stroke-width="2"/><circle cx="14" cy="20" r="3" fill="${hue}" opacity=".6"/><rect x="13" y="3" width="2" height="10" rx="1" fill="${hue}" opacity=".5"/></svg>`;
+      } else {
+        const wake = `<path d="M7,32 L2,39 M14,34 L14,40 M21,32 L26,39" stroke="rgba(255,255,255,.12)" stroke-width="1.5" fill="none"/>`;
+        svg = `<svg width="${size}" height="${size * 1.25}" viewBox="0 0 28 35" xmlns="http://www.w3.org/2000/svg" style="transform:rotate(${heading}deg);transform-origin:14px 17px;transition:transform .9s ease">${wake}<path d="M14,1 C14,1 23,10 23,18 L23,26 C23,30 20,33 14,33 C8,33 5,30 5,26 L5,18 C5,10 14,1 14,1Z" fill="${fill}" stroke="${hue}" stroke-width="1.6" stroke-linejoin="round"/><rect x="8" y="13" width="12" height="7" rx="1" fill="${hue}" fill-opacity=".35" stroke="${hue}" stroke-width="1"/><rect x="10" y="10" width="8" height="4" rx="1" fill="${hue}" fill-opacity=".2" stroke="${hue}" stroke-width=".8"/><rect x="12" y="5" width="4" height="6" rx=".8" fill="${hue}" fill-opacity=".4" stroke="${hue}" stroke-width=".8"/><circle cx="7.5" cy="21" r="1.4" fill="#f87171" opacity=".9"/><circle cx="20.5" cy="21" r="1.4" fill="#4ade80" opacity=".9"/></svg>`;
+      }
+      const icon = L.divIcon({ html: `<div style="width:${size}px;height:${size * 1.25}px;position:relative">${svg}${labelHtml}</div>`, className: '', iconSize: [size + 4, size * 1.25 + 14], iconAnchor: [(size + 4) / 2, (size * 1.25 + 14) / 2] });
+      if (_iconCache.size > 500) _iconCache.clear();
+      _iconCache.set(sig, icon);
+      return icon;
+    }
+
+    function connectAIS() {
+      const token = localStorage.getItem('ais_token');
+      if (!token) return;
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      try {
+        wsAis = new WebSocket(proto + '//localhost:4000');
+        wsAis.binaryType = 'arraybuffer';
+        wsAis.onopen = () => { setAISStatus('online', 'Terhubung'); };
+        wsAis.onmessage = e => {
+          try {
+            if (!unpackr) unpackr = new msgpackr.Unpackr({ useRecords: false });
+            handleAISMsg(unpackr.unpack(new Uint8Array(e.data)));
+          } catch (_) { }
+        };
+        wsAis.onclose = () => { setAISStatus('offline', 'Putus'); scheduleAIS(); };
+        wsAis.onerror = () => { setAISStatus('offline', 'Error'); wsAis.close(); };
+      } catch (_) {
+        setAISStatus('offline', 'Gagal');
+        scheduleAIS();
+      }
+    }
+
+    function setAISStatus(state, text) {
+      document.getElementById('ais-dot').className = 'ais-dot ' + state;
+      document.getElementById('ais-status').textContent = text;
+    }
+
+    function scheduleAIS() { clearTimeout(wsReconnectTimer); wsReconnectTimer = setTimeout(connectAIS, 5000); }
+
+    function handleAISMsg(d) {
+      switch (d.type) {
+        case 'init': if (d.ships) d.ships.forEach(s => updShip(s)); if (d.zones) handleZones(d.zones); updTable(); break;
+        case 'pos': if (d.d) d.d.forEach(p => updPos(p)); break;
+        case 'static': if (d.d) d.d.forEach(s => updStatic(s)); break;
+        case 'remove': if (d.mmsis) d.mmsis.forEach(m => rmShip(m)); break;
+        case 'zones': handleZones(d.zones); break;
+      }
+    }
+
+    function updShip(s) {
+      const m = s.m || s.mmsi, lat = s.a !== undefined ? s.a : s.lat, lon = s.o !== undefined ? s.o : s.lon;
+      if (!m || lat === undefined || lon === undefined) return;
+      aisShips[m] = { ...aisShips[m], ...s, mmsi: m, lat, lon, isBaseStation: !!(s.bs || s.isBaseStation), isAircraft: !!(s.ac || s.isAircraft), isAton: !!(s.at || s.isAton), classB: !!(s.cb || s.classB) };
+      const sh = aisShips[m], ll = [lat, lon];
+      if (aisMarkers[m]) {
+        aisMarkers[m].setLatLng(ll);
+        aisMarkers[m].setIcon(makeIcon(sh));
+      } else {
+        const mk = L.marker(ll, { icon: makeIcon(sh) }).addTo(aisMap);
+        mk.bindTooltip(sh.nm || sh.name || m, { direction: 'top', offset: [0, -8], className: 'ais-tooltip' });
+        mk.on('click', () => focusShip(m));
+        aisMarkers[m] = mk;
+      }
+    }
+
+    function updPos(p) {
+      const m = p.m, sh = aisShips[m];
+      if (!sh) { aisShips[m] = { mmsi: m, lat: p.a, lon: p.o, sog: p.s, cog: p.c, heading: p.h, navStatus: p.n, lastSeen: p.t, isBaseStation: !!p.bs, isAircraft: !!p.ac, isAton: !!p.at, classB: !!p.cb }; }
+      else {
+        if (p.a !== undefined) sh.lat = p.a; if (p.o !== undefined) sh.lon = p.o;
+        if (p.s !== undefined) sh.sog = p.s; if (p.c !== undefined) sh.cog = p.c;
+        if (p.h !== undefined) sh.heading = p.h; if (p.n !== undefined) sh.navStatus = p.n;
+        if (p.t !== undefined) sh.lastSeen = p.t;
+      }
+      updShip(aisShips[m]); updTable();
+    }
+
+    function updStatic(s) {
+      const sh = aisShips[s.m]; if (!sh) return;
+      if (s.nm !== undefined) sh.name = s.nm; if (s.tp !== undefined) sh.shipType = s.tp;
+      if (s.cs !== undefined) sh.callsign = s.cs; if (s.im !== undefined) sh.imo = s.im;
+      if (s.dt !== undefined) sh.destination = s.dt; if (s.dr !== undefined) sh.draught = s.dr;
+      if (s.ln !== undefined) sh.length = s.ln; if (s.bm !== undefined) sh.beam = s.bm;
+      if (s.cb !== undefined) { sh.classB = s.cb; sh.isBaseStation = !!(s.bs || sh.bs); sh.isAircraft = !!(s.ac || sh.ac); sh.isAton = !!(s.at || sh.isAton); }
+      if (s.at !== undefined) { sh.isAton = s.at; sh.isBaseStation = !!(s.bs || sh.bs); sh.isAircraft = !!(s.ac || sh.ac); sh.classB = !!(s.cb || sh.classB); }
+      if (s.ct !== undefined) sh.category = s.ct;
+      if (aisMarkers[s.m]) aisMarkers[s.m].setIcon(makeIcon(sh));
+    }
+
+    function rmShip(m) {
+      if (aisMarkers[m]) { aisMap.removeLayer(aisMarkers[m]); delete aisMarkers[m]; }
+      delete aisShips[m]; updTable();
+    }
+
+    function updTable() {
+      const tb = document.getElementById('ais-table-body'), cnt = document.getElementById('ais-count');
+      const ships = Object.values(aisShips);
+      cnt.textContent = ships.length + ' ships';
+      if (!ships.length) { tb.innerHTML = '<tr><td colspan="6" class="ais-empty">Tidak ada data kapal tersedia</td></tr>'; return; }
+      ships.sort((a, b) => Math.abs((a.lat || 0) - AIS_PORT_CENTER[0]) + Math.abs((a.lon || 0) - AIS_PORT_CENTER[1]) - (Math.abs((b.lat || 0) - AIS_PORT_CENTER[0]) + Math.abs((b.lon || 0) - AIS_PORT_CENTER[1])));
+      let h = '';
+      ships.slice(0, 30).forEach(s => {
+        const color = shipColor(s), em = shipEmoji(s), lb = shipLabel(s);
+        const nm = s.name || s.nm || '—', mm = s.mmsi || '—';
+        const sog = s.sog !== undefined ? s.sog.toFixed(1) + ' kn' : '—';
+        const cog = s.cog !== undefined ? s.cog.toFixed(0) + '\u00B0' : '—';
+        h += '<tr onclick="focusShip(\'' + mm + '\')"><td class="dot-cell"><span class="ais-dot-marker" style="background:' + color + '"></span></td><td class="ship-name">' + esc(nm) + '</td><td class="ship-mmsi">' + mm + '</td><td class="ship-sog" style="color:' + (sog !== '—' ? (parseFloat(s.sog) > 5 ? 'var(--amber)' : 'var(--green)') : '') + '">' + sog + '</td><td class="ship-cog">' + cog + '</td><td class="ship-type">' + em + ' ' + esc(lb) + '</td></tr>';
+      });
+      tb.innerHTML = h;
+    }
+
+    function handleZones(zs) {
+      zones = zs || [];
+      Object.values(zoneLayers).forEach(l => aisMap.removeLayer(l));
+      Object.keys(zoneLayers).forEach(k => delete zoneLayers[k]);
+      for (const z of zones) {
+        if (!z.polygon || z.polygon.length < 3) continue;
+        const latlngs = z.polygon.map(p => [p[0], p[1]]);
+        const poly = L.polygon(latlngs, {
+          color: z.color || '#ff1744', weight: z.enabled ? 2 : 1,
+          opacity: z.enabled ? .85 : .4,
+          fillColor: z.color || '#ff1744',
+          fillOpacity: z.enabled ? .13 : .05,
+          dashArray: z.enabled ? null : '6,4',
+        });
+        poly.bindTooltip(`<b>${esc(z.name)}</b>${z.shipCount ? `<br>🚢 ${z.shipCount} kapal` : ''}`, { sticky: true, direction: 'center' });
+        if (showGeo) poly.addTo(aisMap);
+        zoneLayers[z.id] = poly;
+      }
+    }
+
+    function toggleGeoOverlay(on) {
+      showGeo = on;
+      Object.values(zoneLayers).forEach(l => { if (on) l.addTo(aisMap); else aisMap.removeLayer(l); });
+    }
+
+    function focusShip(m) {
+      const e = aisMarkers[m];
+      if (e) { aisMap.setView(e.getLatLng(), 16, { animate: true }); e.openTooltip(); }
+    }
+
+    function esc(s) { if (!s) return '—'; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initAISMap();
+      setTimeout(connectAIS, 1000);
+      fetch('/api/zones', { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(zs => handleZones(zs)).catch(() => { });
+    });
+  </script>
+</body>
+
+</html>

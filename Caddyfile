@@ -1,0 +1,79 @@
+# ═══════════════════════════════════════════════════════════════
+#  Caddyfile — AISNESIA
+#
+#  map.osi.my.id      → AISNESIA Realtime  (localhost:4000)
+#  api.map.osi.my.id  → AISNESIA Recorder  (localhost:4002)
+#
+#  Fitur otomatis Caddy:
+#   ✓ HTTPS + Let's Encrypt (auto-renew)
+#   ✓ WebSocket (wss://) → ws:// tanpa konfigurasi tambahan
+#   ✓ HTTP → HTTPS redirect otomatis
+#   ✓ X-Forwarded-* headers diteruskan ke backend
+#
+#  Cara menjalankan:
+#   .\caddy.exe run
+#
+#  Syarat:
+#   - Port 80 dan 443 harus terbuka di firewall
+#   - DNS map.osi.my.id dan api.map.osi.my.id harus mengarah ke IP PC ini
+# ═══════════════════════════════════════════════════════════════
+
+{
+    # Nonaktifkan admin API (hindari konflik port 2019)
+    admin off
+
+    # Email untuk notifikasi Let's Encrypt (opsional tapi disarankan)
+    email admin@osi.my.id
+}
+
+# ── AISNESIA Realtime — Live Map ─────────────────────────────
+map.osi.my.id {
+
+    reverse_proxy localhost:4000 {
+        header_up X-Real-IP {remote_host}
+    }
+
+    header {
+        X-Frame-Options         "SAMEORIGIN"
+        X-Content-Type-Options  "nosniff"
+        X-XSS-Protection        "1; mode=block"
+        Referrer-Policy         "strict-origin-when-cross-origin"
+        -Server
+        # Aktifkan setelah konfirmasi HTTPS berjalan:
+        # Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    }
+
+    log {
+        output file logs/map-access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format console
+    }
+}
+
+# ── AISNESIA Recorder — Data Explorer & API ──────────────────
+api.map.osi.my.id {
+
+    reverse_proxy localhost:4002 {
+        header_up X-Real-IP {remote_host}
+    }
+
+    header {
+        X-Frame-Options         "SAMEORIGIN"
+        X-Content-Type-Options  "nosniff"
+        X-XSS-Protection        "1; mode=block"
+        Referrer-Policy         "strict-origin-when-cross-origin"
+        # Izinkan akses API dari domain map.osi.my.id
+        Access-Control-Allow-Origin "https://map.osi.my.id"
+        -Server
+    }
+
+    log {
+        output file logs/api-access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format console
+    }
+}

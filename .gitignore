@@ -1,0 +1,25 @@
+node_modules/
+.env
+logs/*.log
+logs/
+data/sources.json
+data/geofences.json
+data/users.json
+*.tar.gz
+.DS_Store
+Thumbs.db
+# Python
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# Environment
+.env

@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal Tugas Akhir — Balqis Kyla Tahira</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --muted: #64748B;
+
+      --blue: #3B82F6;
+      --blue-bg: #EFF6FF;
+      --green: #10B981;
+      --green-bg: #ECFDF5;
+      --red: #EF4444;
+      --red-bg: #FEF2F2;
+      --amber: #F59E0B;
+      --amber-bg: #FFFBEB;
+      --purple: #8B5CF6;
+      --purple-bg: #F5F3FF;
+      --cyan: #06B6D4;
+      --cyan-bg: #ECFEFF;
+
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── LOGIN ── */
+    #login-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: linear-gradient(135deg, #F1F5F9 0%, #F8FAFC 50%, #EFF6FF 100%);
+    }
+
+    .login-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2.25rem 2rem;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .login-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 1.75rem;
+      gap: .6rem;
+    }
+
+    .login-logo-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      background: var(--blue);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.3);
+    }
+
+    .login-logo-title {
+      font-size: .85rem;
+      font-weight: 700;
+      color: var(--text);
+      text-align: center;
+      letter-spacing: -.01em;
+    }
+
+    .login-logo-sub {
+      font-size: .65rem;
+      color: var(--muted);
+      letter-spacing: .06em;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .login-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: .2rem;
+    }
+
+    .login-subtitle {
+      font-size: .75rem;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 1.6rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      color: var(--muted);
+      margin-bottom: .35rem;
+    }
+
+    .form-input-wrap {
+      position: relative;
+    }
+
+    .form-input-icon {
+      position: absolute;
+      left: .85rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      display: grid;
+      place-items: center;
+    }
+
+    .form-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: .75rem .9rem .75rem 2.5rem;
+      color: var(--text);
+      font-size: .85rem;
+      font-family: 'Poppins', sans-serif;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+    }
+
+    .form-input::placeholder {
+      color: #94A3B8;
+    }
+
+    .form-input:focus {
+      border-color: var(--blue);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-input.error {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
+    .pw-toggle {
+      position: absolute;
+      right: .8rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+    }
+
+    .pw-toggle:hover {
+      color: var(--text);
+    }
+
+    .error-msg {
+      display: none;
+      background: var(--red-bg);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 10px;
+      padding: .6rem .85rem;
+      font-size: .72rem;
+      color: var(--red);
+      font-weight: 600;
+      margin-bottom: 1rem;
+      align-items: center;
+      gap: .45rem;
+    }
+
+    .error-msg.show {
+      display: flex;
+    }
+
+    .btn-login {
+      width: 100%;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: .85rem;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+      transition: transform .15s, box-shadow .2s, opacity .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .btn-login:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+    }
+
+    .btn-login:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-login:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      display: none;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .btn-login.loading .spinner {
+      display: block;
+    }
+
+    .btn-login.loading .btn-text {
+      opacity: .8;
+    }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 1.3rem;
+      font-size: .65rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    /* ── PORTAL ── */
+    #portal-page {
+      display: none;
+    }
+
+    #portal-page.show {
+      display: block;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: .5rem;
+      padding: .85rem 2rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+
+    .nav-brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--blue);
+      color: #fff;
+      display: grid;
+      place-items: center;
+    }
+
+    .nav-title {
+      font-size: .8rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -.01em;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      flex-wrap: wrap;
+    }
+
+    .nav-user {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      font-size: .75rem;
+      font-weight: 500;
+    }
+
+    .nav-user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: .6rem;
+      font-weight: 700;
+    }
+
+    .nav-badge {
+      font-size: .65rem;
+      font-weight: 600;
+      background: var(--blue-bg);
+      color: var(--blue);
+      padding: .25rem .65rem;
+      border-radius: 999px;
+    }
+
+    .btn-logout {
+      font-size: .7rem;
+      font-weight: 600;
+      color: var(--red);
+      background: var(--red-bg);
+      border: 1px solid rgba(239, 68, 68, 0.15);
+      padding: .35rem .8rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .btn-logout:hover {
+      background: #FEE2E2;
+    }
+
+    /* HERO */
+    .hero {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      align-items: center;
+      gap: 3rem;
+      padding: 5rem 5vw;
+      background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 50%, #F0FDF4 100%);
+    }
+
+    .hero-text {
+      max-width: 600px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 1.2rem;
+    }
+
+    .eyebrow-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: .4;
+        transform: scale(.75);
+      }
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 3.6vw, 2.8rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -.02em;
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+
+    h1 .accent-ais {
+      color: var(--blue);
+    }
+
+    h1 .accent-img {
+      color: var(--red);
+    }
+
+    .hero-author {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .author-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: .9rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .author-info small {
+      display: block;
+      font-size: .65rem;
+      color: var(--muted);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .author-info strong {
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .hero-cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .85rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .75rem 1.5rem;
+      border-radius: 10px;
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .01em;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .2s;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn-ais {
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-ais:hover {
+      box-shadow: 0 8px 22px rgba(59, 130, 246, 0.35);
+    }
+
+    .btn-monitor {
+      background: var(--red);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-monitor:hover {
+      box-shadow: 0 8px 22px rgba(239, 68, 68, 0.35);
+    }
+
+    /* RADAR */
+    .hero-radar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .radar-wrap {
+      position: relative;
+      width: min(360px, 34vw);
+      aspect-ratio: 1;
+    }
+
+    .radar-svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.06));
+    }
+
+    @keyframes radar-sweep {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .radar-sweep {
+      transform-origin: 210px 210px;
+      animation: radar-sweep 3s linear infinite;
+    }
+
+    @keyframes blip {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: .25;
+      }
+    }
+
+    .blip1 {
+      animation: blip 1.4s ease-in-out infinite;
+    }
+
+    .blip2 {
+      animation: blip 1.9s ease-in-out .4s infinite;
+    }
+
+    .blip3 {
+      animation: blip 2.2s ease-in-out .9s infinite;
+    }
+
+    .float-badge {
+      position: absolute;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .4rem .8rem;
+      font-size: .68rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-md);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      z-index: 10;
+    }
+
+    .fb-blue {
+      color: var(--blue);
+      top: 4%;
+      right: -4%;
+    }
+
+    .fb-green {
+      color: var(--green);
+      bottom: 24%;
+      left: -8%;
+    }
+
+    .fb-amber {
+      color: var(--amber);
+      bottom: 4%;
+      right: 6%;
+    }
+
+    .fb-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse-dot 1.8s ease-in-out infinite;
+    }
+
+    /* MAIN */
+    main {
+      padding: 4rem 5vw 5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .tech-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .tag {
+      padding: .35rem .8rem;
+      border-radius: 999px;
+      font-size: .7rem;
+      font-weight: 500;
+      border: 1px solid;
+    }
+
+    .tag-blue {
+      background: var(--blue-bg);
+      border-color: rgba(59, 130, 246, 0.2);
+      color: var(--blue);
+    }
+
+    .tag-green {
+      background: var(--green-bg);
+      border-color: rgba(16, 185, 129, 0.2);
+      color: var(--green);
+    }
+
+    .tag-red {
+      background: var(--red-bg);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: var(--red);
+    }
+
+    .tag-amber {
+      background: var(--amber-bg);
+      border-color: rgba(245, 158, 11, 0.2);
+      color: var(--amber);
+    }
+
+    .tag-purple {
+      background: var(--purple-bg);
+      border-color: rgba(139, 92, 246, 0.2);
+      color: var(--purple);
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .85rem;
+      margin-bottom: 3rem;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.2rem;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      transition: transform .15s, box-shadow .2s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .stat-icon {
+      display: grid;
+      place-items: center;
+      margin-bottom: .5rem;
+    }
+
+    .stat-val {
+      font-size: 1.3rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: .25rem;
+    }
+
+    .stat-lbl {
+      font-size: .62rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+
+    .sv-blue {
+      color: var(--blue);
+    }
+
+    .sv-green {
+      color: var(--green);
+    }
+
+    .sv-red {
+      color: var(--red);
+    }
+
+    .sv-amber {
+      color: var(--amber);
+    }
+
+    .section-label {
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .35rem;
+    }
+
+    .section-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      margin-bottom: 1.3rem;
+      color: var(--text);
+      letter-spacing: -.01em;
+    }
+
+    .abstract-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 3rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .abstract-card p {
+      font-size: .9rem;
+      line-height: 1.8;
+      color: #334155;
+      font-weight: 400;
+    }
+
+    .abstract-card p strong {
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    .app-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 3rem;
+    }
+
+    .app-card {
+      border-radius: 16px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+      text-decoration: none;
+      display: block;
+      transition: transform .2s, box-shadow .2s;
+      border: 1px solid;
+    }
+
+    .app-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .app-card::after {
+      content: '';
+      position: absolute;
+      top: 1.25rem;
+      right: 1.25rem;
+      transition: transform .2s, opacity .2s;
+    }
+
+    .app-card:hover::after {
+      transform: translate(2px, -2px);
+    }
+
+    .card-ais {
+      background: var(--blue-bg);
+      border-color: rgba(59, 130, 246, 0.2);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.06);
+    }
+
+    .card-ais:hover {
+      box-shadow: 0 12px 28px rgba(59, 130, 246, 0.12);
+    }
+
+    .card-monitor {
+      background: var(--red-bg);
+      border-color: rgba(239, 68, 68, 0.2);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.06);
+    }
+
+    .card-monitor:hover {
+      box-shadow: 0 12px 28px rgba(239, 68, 68, 0.12);
+    }
+
+    .card-port {
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      opacity: .5;
+      margin-bottom: .4rem;
+      color: var(--text);
+    }
+
+    .card-name {
+      font-size: 1.2rem;
+      font-weight: 800;
+      margin-bottom: .5rem;
+      letter-spacing: -.01em;
+    }
+
+    .card-ais .card-name {
+      color: var(--blue);
+    }
+
+    .card-monitor .card-name {
+      color: var(--red);
+    }
+
+    .card-desc {
+      font-size: .8rem;
+      color: #475569;
+      line-height: 1.6;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-icon-wrap {
+      position: absolute;
+      bottom: 1rem;
+      right: 1.5rem;
+      opacity: .1;
+      user-select: none;
+    }
+
+    .feat-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .35rem;
+    }
+
+    .feat-pill {
+      font-size: .63rem;
+      font-weight: 500;
+      padding: .2rem .55rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.75);
+      color: #475569;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1rem 2.5rem;
+      border-top: 1px solid var(--border);
+      font-size: .75rem;
+      color: var(--muted);
+      background: var(--card);
+    }
+
+    footer strong {
+      color: var(--blue);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--green);
+      color: #fff;
+      border-radius: 12px;
+      padding: .7rem 1.4rem;
+      font-size: .78rem;
+      font-weight: 600;
+      z-index: 100;
+      font-family: 'Poppins', sans-serif;
+      transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      white-space: nowrap;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width:900px) {
+      .hero {
+        grid-template-columns: 1fr;
+        min-height: auto;
+        padding: 3rem 5vw;
+      }
+
+      .hero-radar {
+        display: none;
+      }
+
+      .app-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      nav {
+        padding: .7rem 1rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ═══════ LOGIN ═══════ -->
+  <div id="login-page">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="login-logo-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 20h20" />
+            <path d="M4 16l-2 4h20l-2-4" />
+            <path d="M6 10h12" />
+            <path d="M12 2v8" />
+            <polyline points="8 6 12 2 16 6" />
+          </svg>
+        </div>
+        <div class="login-logo-title">AIS Port Monitor</div>
+        <div class="login-logo-sub">SISTEM MONITORING KAPAL SANDAR</div>
+      </div>
+      <div class="login-title">Selamat Datang</div>
+      <div class="login-subtitle">Masuk untuk mengakses portal sistem</div>
+
+      <div class="error-msg" id="error-msg">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <span id="error-text">Username atau password salah.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inp-user">Username</label>
+        <div class="form-input-wrap">
+          <span class="form-input-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </span>
+          <input class="form-input" type="text" id="inp-user" placeholder="Masukkan username" autocomplete="username" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="inp-pass">Password</label>
+        <div class="form-input-wrap">
+          <span class="form-input-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </span>
+          <input class="form-input" type="password" id="inp-pass" placeholder="Masukkan password"
+            autocomplete="current-password" />
+          <button class="pw-toggle" type="button" id="pw-toggle" title="Tampilkan password">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-login" id="btn-login" onclick="doLogin()">
+        <div class="spinner" id="spinner"></div>
+        <span class="btn-text">Masuk ke Portal</span>
+      </button>
+
+      <div class="login-footer">Balqis Kyla Tahira · Tugas Akhir 2026</div>
+    </div>
+  </div>
+
+  <!-- ═══════ PORTAL ═══════ -->
+  <div id="portal-page">
+
+    <nav>
+      <div class="nav-brand">
+        <div class="nav-brand-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 20h20" />
+            <path d="M4 16l-2 4h20l-2-4" />
+            <path d="M6 10h12" />
+            <path d="M12 2v8" />
+            <polyline points="8 6 12 2 16 6" />
+          </svg>
+        </div>
+        <span class="nav-title">AIS PORT MONITOR</span>
+      </div>
+      <div class="nav-right">
+        <div class="nav-user">
+          <div class="nav-user-avatar" id="nav-avatar">BK</div>
+          <span id="nav-username">—</span>
+        </div>
+        <span class="nav-badge">TUGAS AKHIR · 2025</span>
+        <button class="btn-logout" onclick="doLogout()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          KELUAR
+        </button>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-text">
+        <div class="eyebrow"><span class="eyebrow-dot"></span> Prototipe Sistem Monitoring Pelabuhan</div>
+        <h1>
+          SISTEM MONITORING<br>
+          KAPAL SANDAR<br>
+          BERBASIS <span class="accent-ais">AIS</span> &amp;<br>
+          PENGOLAHAN <span class="accent-img">CITRA</span>
+        </h1>
+        <div class="hero-author">
+          <div class="author-avatar">BK</div>
+          <div class="author-info"><small>Penulis</small><strong>Balqis Kyla Tahira</strong></div>
+        </div>
+        <div class="hero-cta">
+          <a href="/index.html" class="btn btn-ais" target="_blank" rel="noopener">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2l-2 4h4l-2 4" />
+              <path d="M6 10h12" />
+              <path d="M4 16l-2 4h20l-2-4" />
+              <path d="M2 20h20" />
+            </svg>
+            Aplikasi AIS
+          </a>
+          <a href="/yolo-camera-monitor.html" class="btn btn-monitor" target="_blank" rel="noopener">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+            Aplikasi Monitoring
+          </a>
+        </div>
+      </div>
+
+      <div class="hero-radar">
+        <div class="radar-wrap">
+          <div class="float-badge fb-blue">
+            <span class="fb-dot"></span> AIS Receiver Active
+          </div>
+          <div class="float-badge fb-green">
+            <span class="fb-dot"></span> YOLO Detection ON
+          </div>
+          <svg class="radar-svg" viewBox="0 0 420 420" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="radarBg" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#FFFFFF" />
+                <stop offset="100%" stop-color="#EFF6FF" />
+              </radialGradient>
+              <radialGradient id="sweepGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#10B981" stop-opacity="0.35" />
+                <stop offset="100%" stop-color="#10B981" stop-opacity="0" />
+              </radialGradient>
+            </defs>
+            <circle cx="210" cy="210" r="200" fill="url(#radarBg)" stroke="#CBD5E1" stroke-width="1.5" />
+            <circle cx="210" cy="210" r="50" fill="none" stroke="#E2E8F0" stroke-width="1" />
+            <circle cx="210" cy="210" r="100" fill="none" stroke="#E2E8F0" stroke-width="1" />
+            <circle cx="210" cy="210" r="150" fill="none" stroke="#E2E8F0" stroke-width="1" />
+            <line x1="10" y1="210" x2="410" y2="210" stroke="#E2E8F0" stroke-width="1" />
+            <line x1="210" y1="10" x2="210" y2="410" stroke="#E2E8F0" stroke-width="1" />
+            <g class="radar-sweep">
+              <path d="M210,210 L210,10 A200,200 0 0,1 368,93 Z" fill="url(#sweepGrad)" opacity="0.85" />
+              <line x1="210" y1="210" x2="210" y2="10" stroke="#10B981" stroke-width="2.5" opacity="0.9" />
+            </g>
+            <circle class="blip1" cx="280" cy="145" r="6" fill="#3B82F6" />
+            <circle class="blip2" cx="165" cy="270" r="6" fill="#EF4444" />
+            <circle class="blip3" cx="310" cy="250" r="5" fill="#F59E0B" />
+            <circle cx="210" cy="210" r="6" fill="#10B981" />
+            <circle cx="210" cy="210" r="11" fill="none" stroke="#10B981" stroke-width="1.5" opacity="0.4" />
+            <text x="215" y="165" fill="#94A3B8" font-size="9" font-family="Poppins">50m</text>
+            <text x="215" y="115" fill="#94A3B8" font-size="9" font-family="Poppins">100m</text>
+            <text x="215" y="65" fill="#94A3B8" font-size="9" font-family="Poppins">150m</text>
+            <text x="206" y="22" fill="#94A3B8" font-size="9" font-family="Poppins" text-anchor="middle">N</text>
+            <text x="206" y="406" fill="#94A3B8" font-size="9" font-family="Poppins" text-anchor="middle">S</text>
+            <text x="403" y="213" fill="#94A3B8" font-size="9" font-family="Poppins" text-anchor="middle">E</text>
+            <text x="12" y="213" fill="#94A3B8" font-size="9" font-family="Poppins" text-anchor="middle">W</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <main>
+
+      <p class="section-label">— Abstrak Penelitian</p>
+      <h2 class="section-title">Tentang Penelitian</h2>
+      <div class="abstract-card">
+        <p>
+          Penelitian ini mengembangkan prototipe sistem monitoring proses sandar kapal di pelabuhan yang
+          mengintegrasikan data
+          <strong>Automatic Identification System (AIS)</strong> dengan pengolahan citra berbasis
+          <strong>You Only Look Once (YOLO)</strong>. Latar belakang penelitian menyoroti risiko tinggi keselamatan dan
+          potensi
+          kecurangan penempatan dermaga akibat ketergantungan pada pengawasan manual serta keterbatasan AIS yang hanya
+          menyediakan informasi posisi makro tanpa validasi visual jarak dekat.<br /><br />
+          Pendekatan <strong>geofencing berbasis polygon</strong> dikombinasikan dengan deteksi objek otomatis untuk
+          menentukan
+          zona kedekatan kapal terhadap dermaga serta memberikan pemberitahuan jika terjadi ketidaksesuaian. Penelitian
+          ini
+          diharapkan mampu meningkatkan <em>situational awareness</em> operator dan mengurangi <em>human error</em>.
+        </p>
+      </div>
+
+      <p class="section-label">— Akses Aplikasi</p>
+      <h2 class="section-title">Portal Aplikasi</h2>
+      <div class="app-grid">
+        <a href="/index.html" class="app-card card-ais" target="_blank" rel="noopener">
+          <div class="card-port">localhost:4000</div>
+          <div class="card-name">Aplikasi AIS</div>
+          <div class="card-desc">Dashboard visualisasi data AIS secara real-time. Pantau posisi dan pergerakan kapal di
+            peta interaktif berbasis MapLibre dengan zona geofencing polygon.</div>
+          <div class="feat-list">
+            <span class="feat-pill">AIS Data Stream</span>
+            <span class="feat-pill">MapLibre Map</span>
+            <span class="feat-pill">Geofencing</span>
+            <span class="feat-pill">Vessel Track</span>
+          </div>
+          <div class="card-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88" />
+            </svg>
+          </div>
+        </a>
+        <a href="/yolo-camera-monitor.html" class="app-card card-monitor" target="_blank" rel="noopener">
+          <div class="card-port">localhost:4000/yolo-camera-monitor.html</div>
+          <div class="card-name">Aplikasi Monitoring</div>
+          <div class="card-desc">Sistem deteksi kapal berbasis YOLO dengan umpan video CCTV langsung. Validasi visual
+            jarak dekat terintegrasi dengan peringatan audio-visual via ESP32 dan piezo buzzer.</div>
+          <div class="feat-list">
+            <span class="feat-pill">CCTV Feed</span>
+            <span class="feat-pill">YOLO Detection</span>
+            <span class="feat-pill">Alert System</span>
+            <span class="feat-pill">Real-Time Stats</span>
+          </div>
+          <div class="card-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+          </div>
+        </a>
+      </div>
+    </main>
+
+    <footer>
+      <p>Tugas Akhir · <strong>Balqis Kyla Tahira</strong></p>
+      <p style="margin-top:.35rem;font-size:.68rem;opacity:.65;">PROTOTIPE SISTEM MONITORING KAPAL SANDAR DI PELABUHAN
+        BERBASIS AIS DAN PENGOLAHAN CITRA</p>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+    <span id="toast-text">Login berhasil! Selamat datang.</span>
+  </div>
+
+  <script>
+    document.getElementById('pw-toggle').addEventListener('click', function () {
+      const inp = document.getElementById('inp-pass');
+      const isText = inp.type === 'text';
+      inp.type = isText ? 'password' : 'text';
+      const svg = this.querySelector('svg');
+      if (isText) {
+        svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+      } else {
+        svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+      }
+    });
+
+    ['inp-user', 'inp-pass'].forEach(id => {
+      document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    });
+
+    async function doLogin() {
+      const username = document.getElementById('inp-user').value.trim();
+      const password = document.getElementById('inp-pass').value;
+      const btn = document.getElementById('btn-login');
+      const errBox = document.getElementById('error-msg');
+
+      if (!username || !password) { showError('Username dan password tidak boleh kosong.'); return; }
+
+      btn.disabled = true; btn.classList.add('loading');
+      errBox.classList.remove('show');
+      document.getElementById('inp-user').classList.remove('error');
+      document.getElementById('inp-pass').classList.remove('error');
+
+      try {
+        const res = await fetch('http://localhost:4000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+          credentials: 'include'
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && data.ok) {
+          if (data.token) localStorage.setItem('ais_token', data.token);
+          onLoginSuccess(data.user?.username || username);
+          return;
+        }
+        showError(data.error || 'Username atau password salah.');
+      } catch (e) {
+        showError('Tidak dapat terhubung ke server (localhost:4000). Pastikan server berjalan.');
+      } finally {
+        btn.disabled = false; btn.classList.remove('loading');
+      }
+    }
+
+    function showError(msg) {
+      const errBox = document.getElementById('error-msg');
+      document.getElementById('error-text').textContent = msg;
+      errBox.classList.add('show');
+      document.getElementById('inp-user').classList.add('error');
+      document.getElementById('inp-pass').classList.add('error');
+    }
+
+    function onLoginSuccess(uname) {
+      const initial = uname.charAt(0).toUpperCase();
+      document.getElementById('nav-avatar').textContent = initial;
+      document.getElementById('nav-username').textContent = uname;
+
+      document.getElementById('login-page').style.display = 'none';
+      document.getElementById('portal-page').classList.add('show');
+      window.scrollTo(0, 0);
+
+      const toast = document.getElementById('toast');
+      toast.querySelector('#toast-text').textContent = 'Selamat datang, ' + uname + '!';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    function doLogout() {
+      localStorage.removeItem('ais_token');
+      document.getElementById('inp-user').value = '';
+      document.getElementById('inp-pass').value = '';
+      document.getElementById('error-msg').classList.remove('show');
+      document.getElementById('inp-user').classList.remove('error');
+      document.getElementById('inp-pass').classList.remove('error');
+
+      document.getElementById('portal-page').classList.remove('show');
+      document.getElementById('login-page').style.display = 'flex';
+      window.scrollTo(0, 0);
+    }
+
+    window.addEventListener('load', () => {
+      const token = localStorage.getItem('ais_token');
+      if (token) {
+        fetch('http://localhost:4000/api/auth/me', {
+          headers: { 'Authorization': 'Bearer ' + token },
+          credentials: 'include'
+        })
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then(d => onLoginSuccess(d.username || 'Operator'))
+          .catch(() => localStorage.removeItem('ais_token'));
+      }
+    });
+  </script>
+</body>
+
+</html>
