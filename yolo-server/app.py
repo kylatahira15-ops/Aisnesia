@@ -39,6 +39,7 @@ state = {
     'total_detect': 0,
     'total_alert' : 0,
     'detections' : [],
+    'last_detect_time': 0,
     'fps'         : 0.0,
     'frame_count' : 0,
     'start_time'  : None,
@@ -172,7 +173,7 @@ def camera_loop():
             detected = last_result['detected']
             conf_val = last_result['conf']
 
-        # Simpan daftar class name untuk di-poll actuator.js
+        # Simpan daftar class name untuk di-poll actuator.js — stabil 3 detik
         if detected:
             detections_list = []
             seen = set()
@@ -181,8 +182,13 @@ def camera_loop():
                     seen.add(cls_name)
                     detections_list.append({'name': cls_name, 'confidence': conf})
             state['detections'] = detections_list
+            state['last_detect_time'] = time.time()
         else:
-            state['detections'] = []
+            # Keep detections for 3 seconds after last detection
+            if time.time() - state.get('last_detect_time', 0) < 3:
+                pass
+            else:
+                state['detections'] = []
 
         # Gambar bounding box (dari hasil terbaru / cache)
         for (x1,y1,x2,y2,cls_name,conf,is_match) in last_result['boxes']:
