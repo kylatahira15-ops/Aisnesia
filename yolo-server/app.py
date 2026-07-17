@@ -10,6 +10,10 @@
 ================================================================
 """
 
+import os
+
+import os
+
 from flask import Flask, render_template, Response, jsonify, request
 from flask_cors import CORS
 import cv2
@@ -22,7 +26,7 @@ CORS(app)
 
 # ── CONFIG ──────────────────────────────────────────
 CAMERA_SOURCE = 0          # 0 = webcam laptop (default), ganti jika pakai CCTV/IP cam
-YOLO_MODEL    = 'best.pt'  # model hasil training sendiri (taruh di folder yang sama dengan app.py)
+YOLO_MODEL    = os.path.join(os.path.dirname(__file__), 'best.pt')  # model hasil training sendiri (taruh di folder yang sama dengan app.py)
 CONFIDENCE    = 0.5
 TARGET_CLASS  = None       # None = deteksi SEMUA kelas dari model custom (karena best.pt biasanya sudah khusus kapal)
 
