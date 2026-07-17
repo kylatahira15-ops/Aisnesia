@@ -38,6 +38,7 @@ state = {
     'confidence'  : 0.0,
     'total_detect': 0,
     'total_alert' : 0,
+    'detections' : [],
     'fps'         : 0.0,
     'frame_count' : 0,
     'start_time'  : None,
@@ -171,6 +172,18 @@ def camera_loop():
             detected = last_result['detected']
             conf_val = last_result['conf']
 
+        # Simpan daftar class name untuk di-poll actuator.js
+        if detected:
+            detections_list = []
+            seen = set()
+            for (x1,y1,x2,y2,cls_name,conf,is_match) in last_result['boxes']:
+                if cls_name not in seen:
+                    seen.add(cls_name)
+                    detections_list.append({'name': cls_name, 'confidence': conf})
+            state['detections'] = detections_list
+        else:
+            state['detections'] = []
+
         # Gambar bounding box (dari hasil terbaru / cache)
         for (x1,y1,x2,y2,cls_name,conf,is_match) in last_result['boxes']:
             color = (0,255,136) if is_match else (0,200,255)
@@ -264,6 +277,10 @@ def api_status():
         'uptime_sec': uptime,
         'timestamp' : datetime.datetime.now().isoformat(),
     })
+
+@app.route('/api/detections')
+def api_detections():
+    return jsonify({'detections': state.get('detections', [])})
 
 @app.route('/api/start', methods=['POST'])
 def api_start():

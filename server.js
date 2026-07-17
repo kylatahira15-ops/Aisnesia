@@ -342,17 +342,17 @@ geoMgr.on('enter', ({ zone, ship }) => {
   console.log(`[GEO] ENTER "${zone.name}" ← ${ship.mmsi}`);
   broadcast({ type: 'geo-event', event: 'enter', zone, ship: leanShip(ship) });
   if (ship.classB) {
-    db.logZoneEvent({ event: 'enter', zone, ship, cameraConfirmed: actuator.getCameraDetected() });
+    db.logZoneEvent({ event: 'enter', zone, ship });
   }
-  actuator.onGeoEvent('enter', zone, ship);
+  actuator.onGeoEvent();
 });
 geoMgr.on('exit', ({ zone, ship }) => {
   console.log(`[GEO] EXIT  "${zone.name}" ← ${ship.mmsi}`);
   broadcast({ type: 'geo-event', event: 'exit', zone, ship: leanShip(ship) });
   if (ship.classB) {
-    db.logZoneEvent({ event: 'exit', zone, ship, cameraConfirmed: actuator.getCameraDetected() });     // ← tambahkan
+    db.logZoneEvent({ event: 'exit', zone, ship });
   }
-  actuator.onGeoEvent('exit', zone, ship);
+  actuator.onGeoEvent();
 });
 geoMgr.on('alert', async ({ event, zone, ship }) => {
   if (mailer.isEnabled()) await mailer.sendGeofenceAlert(event, zone, ship);
@@ -465,6 +465,21 @@ app.get('/api/serial/ports', requireAuth(), async (_, res) => res.json(await Sou
 // ── PROTECTED ROUTES — Geofence ───────────────────
 app.get('/api/zones', requireAuth(), (_, res) => res.json(geoMgr.list()));
 app.post('/api/zones', canManage, (req, res) => { try { res.status(201).json(geoMgr.add(req.body)); } catch (e) { res.status(400).json({ error: e.message }); } });
+app.get('/api/zones/led', async (req, res) => {
+  try {
+    const line = actuator.getLine();
+    res.json({ line });
+  } catch (err) {
+    res.status(500).json({ line: 'ERR' });
+  }
+});
+
+// Init actuator — hubungkan ke geoMgr + lookup nama kapal dari ships Map
+actuator.init(geoMgr, (mmsi) => {
+  const s = ships.get(String(mmsi));
+  return s ? s.name : null;
+});
+
 app.get('/api/zones/:id', requireAuth(), (req, res) => { const z = geoMgr.get(req.params.id); z ? res.json(z) : res.status(404).json({ error: 'Not found' }); });
 app.put('/api/zones/:id', canManage, (req, res) => { try { res.json(geoMgr.update(req.params.id, req.body)); } catch (e) { res.status(400).json({ error: e.message }); } });
 app.delete('/api/zones/:id', canManage, (req, res) => { try { geoMgr.remove(req.params.id); res.json({ ok: true }); } catch (e) { res.status(400).json({ error: e.message }); } });
@@ -488,9 +503,9 @@ app.post('/api/email/test', canManage, async (req, res) => {
   res.json({ ok, message: ok ? 'Email terkirim' : 'Gagal mengirim email' });
 });
 
-app.get('/api/actuator', (req, res) => res.json(actuator.status));
+app.get('/api/actuator', (req, res) => res.json({ line: actuator.getLine() }));
 app.get('/api/actuator/line', (req, res) =>
-  res.type('text/plain').send(actuator.status.line || '0,0,0,0')
+  res.type('text/plain').send(actuator.getLine())
 );
 
 // ── HTTP + WS ─────────────────────────────────────

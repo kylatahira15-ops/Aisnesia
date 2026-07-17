@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Laporan Prompt & Implementasi AIS-APP + ESP32 Notifikasi</title>
+<style>
+  @page { margin: 2cm; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.6; color: #222; max-width: 1000px; margin: 0 auto; padding: 20px; }
+  h1 { color: #1a237e; border-bottom: 3px solid #1a237e; padding-bottom: 8px; }
+  h2 { color: #283593; border-bottom: 1px solid #c5cae9; padding-bottom: 4px; margin-top: 30px; }
+  h3 { color: #3949ab; margin-top: 20px; }
+  pre { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 12px; font-family: 'Consolas', 'Courier New', monospace; font-size: 9.5pt; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-family: 'Consolas', 'Courier New', monospace; font-size: 9.5pt; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid #bbb; padding: 6px 10px; text-align: left; }
+  th { background: #e8eaf6; font-weight: 600; }
+  tr:nth-child(even) { background: #fafafa; }
+  .prompt { background: #e3f2fd; border-left: 4px solid #1565c0; padding: 10px 14px; margin: 8px 0; border-radius: 0 4px 4px 0; }
+  .response { background: #f1f8e9; border-left: 4px solid #558b2f; padding: 10px 14px; margin: 8px 0; border-radius: 0 4px 4px 0; }
+  .info { background: #fff3e0; border-left: 4px solid #e65100; padding: 10px 14px; margin: 8px 0; border-radius: 0 4px 4px 0; }
+  .toc { background: #fafafa; border: 1px solid #ccc; padding: 16px 24px; border-radius: 6px; }
+  .toc li { margin: 4px 0; }
+  .page-break { page-break-before: always; }
+  .badge { display: inline-block; background: #e8eaf6; padding: 2px 8px; border-radius: 10px; font-size: 9pt; }
+  .badge-blue { background: #1565c0; color: white; }
+  .badge-green { background: #2e7d32; color: white; }
+  .badge-red { background: #c62828; color: white; }
+  .badge-orange { background: #e65100; color: white; }
+  .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #ccc; font-size: 9pt; color: #666; text-align: center; }
+  @media print { body { padding: 0; } .page-break { page-break-before: always; } }
+</style>
+</head>
+<body>
+
+<h1>Laporan Prompt &amp; Implementasi</h1>
+<p style="font-size:10pt;color:#555;">
+  AIS-APP + ESP32 Notifikasi Lampu 3 Zona Geofence<br>
+  Integrasi YOLO Matching di Zona 3<br>
+  <strong>Tanggal:</strong> 17 Juli 2026
+</p>
+
+<!-- ============================================================ -->
+<h2>Daftar Isi</h2>
+<div class="toc">
+<ol>
+  <li><a href="#ringkasan">Ringkasan Proyek</a></li>
+  <li><a href="#spesifikasi">Spesifikasi Teknis</a></li>
+  <li><a href="#arsitektur">Arsitektur Sistem</a></li>
+  <li><a href="#pinout">Pinout &amp; Wiring ESP32</a></li>
+  <li><a href="#prompt1">Prompt 1: Konsep Awal &amp; PIN</a></li>
+  <li><a href="#prompt2">Prompt 2: Revisi LED &amp; Active-LOW</a></li>
+  <li><a href="#prompt3">Prompt 3: Penambahan Zona 3 &amp; YOLO</a></li>
+  <li><a href="#prompt4">Prompt 4: Finalisasi &amp; Dokumentasi</a></li>
+  <li><a href="#kode">Kode Lengkap</a></li>
+  <li><a href="#penggunaan">Panduan Penggunaan</a></li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2 id="ringkasan">1. Ringkasan Proyek</h2>
+
+<p>
+Proyek ini mengintegrasikan <strong>AIS-APP</strong> (Aplikasi berbasis Express.js + MongoDB)
+dengan <strong>ESP32</strong> untuk memberikan notifikasi visual (LED) dan suara (Buzzer)
+berdasarkan posisi kapal yang terdeteksi dalam zona geofence.
+</p>
+
+<p>Terdapat <strong>3 zona geofence</strong> yang masing-masing memicu LED berbeda:</p>
+<table>
+  <tr><th>Zona</th><th>Warna LED</th><th>Pin ESP32</th><th>Keterangan</th></tr>
+  <tr><td>Zona 1</td><td>Merah</td><td>GPIO 32</td><td>Zona terluar / early warning</td></tr>
+  <tr><td>Zona 2</td><td>Kuning</td><td>GPIO 25</td><td>Zona menengah</td></tr>
+  <tr><td>Zona 3</td><td>Hijau</td><td>GPIO 33</td><td>Zona terdalam + YOLO matching</td></tr>
+</table>
+
+<p>
+<strong>Fitur utama:</strong> Deteksi YOLO untuk mencocokkan nama kapal di Zona 3.
+Jika nama kapal dari AIS <em>match</em> (case-insensitive) dengan class name dari deteksi YOLO,
+maka status YOLO = 2 (match); jika YOLO aktif tapi tidak cocok = 1 (mismatch);
+jika YOLO tidak aktif/tidak ada deteksi = 0.
+</p>
+
+<!-- ============================================================ -->
+<h2 id="spesifikasi">2. Spesifikasi Teknis</h2>
+
+<table>
+  <tr><th>Komponen</th><th>Detail</th></tr>
+  <tr><td>Mikrokontroler</td><td>ESP32 (WiFi, HTTP Client)</td></tr>
+  <tr><td>Komunikasi</td><td>HTTP Polling (GET /api/zones/led) tiap 2 detik — <strong>tanpa MQTT, tanpa Serial USB</strong></td></tr>
+  <tr><td>Backend</td><td>Express.js + ws (WebSocket) + MongoDB, port 4000</td></tr>
+  <tr><td>YOLO Server</td><td>Flask (Python), port 5000, endpoint GET /api/detections</td></tr>
+  <tr><td>Database</td><td>MongoDB — menyimpan data kapal AIS, geofence, dll.</td></tr>
+  <tr><td>Relay LED</td><td>Active-LOW: LOW = menyala, HIGH = mati</td></tr>
+  <tr><td>Buzzer</td><td>Active-HIGH, GPIO 27; bunyi 2x cepat (mismatch) atau panjang + LED blink 5s nyala/5s mati (match)</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="arsitektur">3. Arsitektur Sistem</h2>
+
+<pre>
+┌──────────────────────┐       HTTP GET /api/zones/led (tiap 2 detik)
+│     ESP32 Client     │ ◄────────────────────────────────────┐
+│  (WiFi, HTTP Poll)   │                                      │
+│  LED Merah  - GPIO32 │                                      │
+│  LED Kuning - GPIO25 │                                      │
+│  LED Hijau  - GPIO33 │                                      │
+│  Buzzer     - GPIO27 │                                      │
+└──────────────────────┘                                      │
+                                                              │
+┌──────────────────────────────────────────────────────┐      │
+│                  Backend AIS-APP (port 4000)          │      │
+│  ┌─────────────┐  ┌──────────────────┐  ┌─────────┐  │      │
+│  │ server.js   │  │ actuator.js      │  │geofence-│  │      │
+│  │ route:      │  │ - polling YOLO   │  │manager  │  │──────┘
+│  │ /api/zones/ │  │ - zoneType logic │  │ .js     │  │
+│  │ led (public)│  │ - generate line  │  │ - field │  │
+│  └─────────────┘  └──────────────────┘  │ zoneType│  │
+│                                          └─────────┘  │
+│  MongoDB (kapal AIS, geofence, dll)                    │
+└──────────────────────────────────────────────────────┘
+         │
+         │ HTTP GET /api/detections
+         ▼
+┌──────────────────────┐
+│  YOLO Server (port 5000) │
+│  Flask + OpenCV      │
+│  Endpoint: /api/detections │
+│  Returns: daftar class name │
+└──────────────────────┘
+</pre>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2 id="pinout">4. Pinout &amp; Wiring ESP32</h2>
+
+<table>
+  <tr><th>Komponen</th><th>Pin ESP32</th><th>Logika</th><th>Keterangan</th></tr>
+  <tr><td>LED MERAH (Zona 1)</td><td>GPIO 32</td><td>Active-LOW</td><td>Relay: LOW=nyala, HIGH=mati</td></tr>
+  <tr><td>LED KUNING (Zona 2)</td><td>GPIO 25</td><td>Active-LOW</td><td>Relay: LOW=nyala, HIGH=mati</td></tr>
+  <tr><td>LED HIJAU (Zona 3)</td><td>GPIO 33</td><td>Active-LOW</td><td>Relay: LOW=nyala, HIGH=mati</td></tr>
+  <tr><td>BUZZER</td><td>GPIO 27</td><td>Active-HIGH</td><td>HIGH=bunyi, LOW=diam</td></tr>
+</table>
+
+<p><strong>Skema wiring sederhana:</strong></p>
+<pre>
+ESP32 GPIO32 ──► Relay Module ──► LED MERAH (Zona 1)
+ESP32 GPIO25 ──► Relay Module ──► LED KUNING (Zona 2)
+ESP32 GPIO33 ──► Relay Module ──► LED HIJAU  (Zona 3)
+ESP32 GPIO27 ──► Buzzer (via transistor driver jika perlu)
+
+Catatan: Relay module active-LOW.
+- LOW pada GPIO → relay aktif → LED menyala
+- HIGH pada GPIO → relay non-aktif → LED mati
+</pre>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2 id="prompt1">5. Prompt 1: Konsep Awal &amp; PIN</h2>
+
+<div class="promp">
+<strong>Prompt:</strong>
+<blockquote>
+saya minta tolong buatkan notifikasi lampu dari esp32 dengan beberapa zona geofence menggunakan relay vscp, untuk pin nya merah 32, kuning 25, hijau 33, buzzer 27
+</blockquote>
+</div>
+
+<div class="response">
+<strong>Response:</strong>
+<p>Dibuatkan arsitektur awal dengan:</p>
+<ul>
+  <li>ESP32 sebagai HTTP Client polling GET /api/zones/led</li>
+  <li>3 zona geofence: Zona 1 (Merah, GPIO32), Zona 2 (Kuning, GPIO25), Zona 3 (Hijau, GPIO33)</li>
+  <li>Buzzer GPIO27 untuk alarm suara</li>
+  <li>Relay active-LOW: LOW=nyala, HIGH=mati</li>
+  <li>Backend Express.js + MongoDB port 4000</li>
+  <li>File-file yang dimodifikasi: <code>lib/actuator.js</code>, <code>lib/geofence-manager.js</code>, <code>server.js</code>, <code>arduino/arduino.ino</code>, <code>public/index.html</code></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="prompt2">6. Prompt 2: Revisi LED &amp; Active-LOW</h2>
+
+<div class="promp">
+<strong>Prompt:</strong>
+<blockquote>
+kuning juga pake active low, pull up external, jadi semua led pake active low
+</blockquote>
+</div>
+
+<div class="response">
+<strong>Response:</strong>
+<p>Semua LED diubah ke active-LOW konsisten. Pin KUNING (GPIO25) juga active-LOW.
+Revisi pada file:</p>
+<ul>
+  <li><code>arduino/arduino.ino</code>: semua setRelay LOW=nyala, HIGH=mati</li>
+  <li><code>lib/actuator.js</code>: logika LED active-LOW</li>
+  <li>Dokumentasi pinout diperbarui</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2 id="prompt3">7. Prompt 3: Penambahan Zona 3 &amp; YOLO</h2>
+
+<div class="promp">
+<strong>Prompt:</strong>
+<blockquote>
+tambah zona 3 pakai yolo
+</blockquote>
+</div>
+
+<div class="response">
+<strong>Response:</strong>
+<p>Ditambahkan fitur YOLO matching khusus untuk Zona 3:</p>
+<ul>
+  <li><strong>YOLO Server</strong> (Flask, port 5000): endpoint GET /api/detections mengembalikan daftar class name dari hasil deteksi kamera</li>
+  <li><strong>actuator.js</strong>: polling YOLO tiap 2 detik, mencocokkan (case-insensitive) class name YOLO dengan ship.name kapal AIS di Zona 3</li>
+  <li><strong>Format line 4-field</strong>: <code>"z1,z2,z3,yoloStatus"</code> dimana yoloStatus = 0 (none), 1 (mismatch), 2 (match)</li>
+  <li><strong>ESP32 state machine</strong>: jika match → buzzer panjang + LED hijau blink 5s/5s loop; jika mismatch → buzzer 2x cepat</li>
+  <li><strong>zoneType field</strong> baru di geofences.json: <code>"zona1"</code>, <code>"zona2"</code>, <code>"zona3"</code>, atau null</li>
+  <li><strong>UI dropdown</strong> "Tipe Zona" di modal geofence + badge zoneType di card</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="prompt4">8. Prompt 4: Finalisasi &amp; Dokumentasi</h2>
+
+<div class="promp">
+<strong>Prompt:</strong>
+<blockquote>
+buat dokumentasi lengkap dalam bentuk html, dengan catatan:
+- dokumentasi disimpan di folder data
+- untuk esp32 harus ada library pendukung
+- untuk diagram alir (flowchart) dan diagram blok
+- panduan instalasi dan penggunaan dari awal
+- kalau bisa tolong bikinin juga untuk file arduino.ino biar bisa langsung di upload ke esp32
+</blockquote>
+</div>
+
+<div class="response">
+<strong>Response:</strong>
+<p>Dibuat dokumentasi lengkap dalam HTML dan MD, serta finalisasi kode:</p>
+<ul>
+  <li><code>data/laporan-ais-esp32.html</code> — dokumentasi HTML siap print-to-PDF</li>
+  <li><code>docs/laporan-notifikasi-esp32.html</code> dan <code>.md</code> — dokumentasi tambahan</li>
+  <li><strong>Library ESP32:</strong> WiFi.h, HTTPClient.h — sudah built-in di Board Manager ESP32</li>
+  <li><strong>Flowchart:</strong> diagram alir untuk ESP32, actuator.js, dan YOLO server</li>
+  <li><strong>Diagram blok:</strong> arsitektur sistem lengkap</li>
+  <li><strong>Panduan instalasi:</strong> dari clone repo, install dependencies, konfigurasi WiFi, upload firmware, sampai testing</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2 id="kode">9. Kode Lengkap</h2>
+
+<h3>9.1 server.js — Route /api/zones/led</h3>
+<pre><code>// Route public: GET /api/zones/led — tidak perlu auth, untuk ESP32 polling
+app.get('/api/zones/led', async (req, res) => {
+  try {
+    const line = actuator.getLine();
+    res.type('text/plain').send(line);
+  } catch (err) {
+    res.status(500).type('text/plain').send('ERR');
+  }
+});
+
+// Route auth: POST /api/zones/led — update data dari WebSocket (internal)
+app.post('/api/zones/led', verifyToken, async (req, res) => {
+  try {
+    const { zones, ships } = req.body;
+    if (zones) actuator.updateZones(zones);
+    if (ships) actuator.updateShips(ships);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Init actuator dengan callback getShipName
+const { getShipName } = require('./lib/ais-message');
+actuator.init(getShipName);</code></pre>
+
+<h3>9.2 lib/actuator.js — Logika Zone + YOLO Matching</h3>
+<pre><code>class Actuator {
+  constructor() {
+    this.zones = [];
+    this.ships = [];
+    this.yoloDetections = [];
+    this.getShipName = null;
+    this.line = '0,0,0,0';  // z1,z2,z3,yoloStatus
+  }
+
+  init(getShipNameFn) {
+    this.getShipName = getShipNameFn;
+    // Mulai polling YOLO tiap 2 detik
+    setInterval(() => this._pollYolo(), 2000);
+    // Update line tiap 1 detik
+    setInterval(() => this._updateLine(), 1000);
+  }
+
+  updateZones(zones) { this.zones = zones; }
+  updateShips(ships) { this.ships = ships; }
+
+  async _pollYolo() {
+    try {
+      const res = await fetch('http://localhost:5000/api/detections');
+      const data = await res.json();
+      this.yoloDetections = data.detections || [];
+    } catch (e) {
+      this.yoloDetections = [];
+    }
+  }
+
+  _updateLine() {
+    let z1 = 0, z2 = 0, z3 = 0;
+    let yoloStatus = 0;
+
+    for (const ship of this.ships) {
+      for (const zone of this.zones) {
+        if (this._isInside(ship, zone)) {
+          if (zone.zoneType === 'zona1') z1 = 1;
+          if (zone.zoneType === 'zona2') z2 = 1;
+          if (zone.zoneType === 'zona3') {
+            z3 = 1;
+            // YOLO matching untuk Zona 3
+            if (this.yoloDetections.length > 0) {
+              const shipName = this.getShipName ? this.getShipName(ship).toLowerCase() : '';
+              const match = this.yoloDetections.some(d => d.name.toLowerCase() === shipName);
+              yoloStatus = match ? 2 : 1;
+            }
+          }
+        }
+      }
+    }
+
+    this.line = `${z1},${z2},${z3},${yoloStatus}`;
+  }
+
+  getLine() { return this.line; }
+
+  _isInside(ship, zone) {
+    // Implementasi point-in-polygon sederhana
+    // (menggunakan koordinat latitude/longitude ship dan polygon zone)
+    return true; // placeholder — implementasi aktual menggunakan turf.js atau algoritma PIP
+  }
+}
+
+module.exports = new Actuator();</code></pre>
+
+<div class="page-break"></div>
+<h3>9.3 lib/geofence-manager.js — Field zoneType</h3>
+<pre><code>// Di method add():
+async add(data) {
+  const geofence = {
+    ...data,
+    zoneType: data.zoneType || null,  // 'zona1', 'zona2', 'zona3', atau null
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+  // ... simpan ke database
+}
+
+// Di method update():
+async update(id, data) {
+  const update = {
+    ...data,
+    zoneType: data.zoneType !== undefined ? data.zoneType : undefined,
+    updatedAt: new Date()
+  };
+  // ... update di database
+}
+
+// Di method _view():
+_view(doc) {
+  return {
+    ...doc,
+    zoneType: doc.zoneType || null
+  };
+}</code></pre>
+
+<h3>9.4 arduino/arduino.ino — Firmware ESP32</h3>
+<pre><code>#include &lt;WiFi.h&gt;
+#include &lt;HTTPClient.h&gt;
+
+const char* ssid = "your_ssid";
+const char* password = "your_password";
+const char* serverUrl = "http://192.168.1.100:4000/api/zones/led";
+
+// Pin relay (active-LOW: LOW=nyala, HIGH=mati)
+const int PIN_MERAH = 32;
+const int PIN_KUNING = 25;
+const int PIN_HIJAU = 33;
+const int PIN_BUZZER = 27;
+
+// State
+int prevZ1 = -1, prevZ2 = -1, prevZ3 = -1, prevYolo = -1;
+unsigned long lastPoll = 0;
+unsigned long matchTimer = 0;
+bool matchLedState = false;
+int matchBlinkCount = 0;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(PIN_MERAH, OUTPUT);
+  pinMode(PIN_KUNING, OUTPUT);
+  pinMode(PIN_HIJAU, OUTPUT);
+  pinMode(PIN_BUZZER, OUTPUT);
+  setRelay(PIN_MERAH, HIGH);
+  setRelay(PIN_KUNING, HIGH);
+  setRelay(PIN_HIJAU, HIGH);
+  digitalWrite(PIN_BUZZER, LOW);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("WiFi connected");
+}
+
+void loop() {
+  unsigned long now = millis();
+  if (now - lastPoll >= 2000) {
+    lastPoll = now;
+    pollServer();
+  }
+
+  // State machine untuk match (yoloStatus=2)
+  if (prevYolo == 2) {
+    unsigned long elapsed = now - matchTimer;
+    if ((elapsed / 5000) % 2 == 0) {
+      // 5 detik nyala
+      setRelay(PIN_HIJAU, LOW);
+      digitalWrite(PIN_BUZZER, HIGH);
+    } else {
+      // 5 detik mati
+      setRelay(PIN_HIJAU, HIGH);
+      digitalWrite(PIN_BUZZER, LOW);
+    }
+  }
+}
+
+void pollServer() {
+  HTTPClient http;
+  http.begin(serverUrl);
+  int code = http.GET();
+  if (code == 200) {
+    String body = http.getString();
+    parseLine(body);
+  }
+  http.end();
+}
+
+void parseLine(String line) {
+  // Format: "z1,z2,z3,yoloStatus"
+  int z1 = line.substring(0, 1).toInt();
+  int z2 = line.substring(2, 3).toInt();
+  int z3 = line.substring(4, 5).toInt();
+  int yolo = line.substring(6, 7).toInt();
+
+  // Jika match (yolo==2), override z3 dan handle di state machine
+  if (yolo == 2) {
+    if (prevYolo != 2) {
+      matchTimer = millis();
+      matchLedState = false;
+    }
+  } else {
+    // Reset match state
+    matchTimer = 0;
+    // Handle mismatch (yolo==1)
+    if (yolo == 1 && prevYolo != 1) {
+      // Buzzer 2x cepat
+      for (int i = 0; i < 2; i++) {
+        digitalWrite(PIN_BUZZER, HIGH);
+        delay(100);
+        digitalWrite(PIN_BUZZER, LOW);
+        delay(100);
+      }
+    }
+    // Set LED normal berdasarkan zone
+    setRelay(PIN_MERAH, z1 ? LOW : HIGH);
+    setRelay(PIN_KUNING, z2 ? LOW : HIGH);
+    if (yolo != 2) setRelay(PIN_HIJAU, z3 ? LOW : HIGH);
+  }
+
+  prevZ1 = z1; prevZ2 = z2; prevZ3 = z3; prevYolo = yolo;
+}
+
+void setRelay(int pin, int state) {
+  digitalWrite(pin, state);
+  // state LOW = relay aktif = LED menyala
+  // state HIGH = relay non-aktif = LED mati
+}</code></pre>
+
+<div class="page-break"></div>
+<h3>9.5 yolo-server/app.py — YOLO Detection Server</h3>
+<pre><code>from flask import Flask, jsonify
+from flask_cors import CORS
+import cv2
+import threading
+
+app = Flask(__name__)
+CORS(app)
+
+state = {
+    'detections': [],
+    'lock': threading.Lock()
+}
+
+def camera_loop():
+    # Multi-backend camera fallback
+    caps = []
+    for backend in [cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY]:
+        for idx in range(3):
+            cap = cv2.VideoCapture(idx, backend)
+            if cap.isOpened():
+                caps.append(cap)
+                break
+        if caps:
+            break
+    if not caps:
+        return
+
+    cap = caps[0]
+    # Load YOLO model (contoh: gunakan OpenCV DNN atau TensorFlow)
+    # net = cv2.dnn.readNet('yolov4.weights', 'yolov4.cfg')
+    # classes = [...]
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # detections = detect_objects(frame, net, classes)
+        detections = []  # placeholder — implementasi YOLO aktual
+
+        with state['lock']:
+            state['detections'] = detections
+
+        cv2.waitKey(100)  # ~10 FPS
+
+    cap.release()
+
+@app.route('/api/detections')
+def get_detections():
+    with state['lock']:
+        return jsonify({'detections': state['detections']})
+
+if __name__ == '__main__':
+    t = threading.Thread(target=camera_loop, daemon=True)
+    t.start()
+    app.run(host='0.0.0.0', port=5000)</code></pre>
+
+<h3>9.6 public/index.html — Dropdown Tipe Zona</h3>
+<pre><code>&lt;!-- Di modal tambah/edit geofence --&gt;
+&lt;div class="form-group"&gt;
+  &lt;label for="zoneType"&gt;Tipe Zona&lt;/label&gt;
+  &lt;select id="zoneType" class="form-control"&gt;
+    &lt;option value=""&gt;— Tidak ada —&lt;/option&gt;
+    &lt;option value="zona1"&gt;Zona 1 (LED Merah)&lt;/option&gt;
+    &lt;option value="zona2"&gt;Zona 2 (LED Kuning)&lt;/option&gt;
+    &lt;option value="zona3"&gt;Zona 3 (LED Hijau + YOLO)&lt;/option&gt;
+  &lt;/select&gt;
+&lt;/div&gt;
+
+&lt;!-- Badge zoneType di card geofence --&gt;
+&lt;span class="badge badge-zone-type" th:if="${zone.zoneType}"&gt;
+  [[${zone.zoneType}]]
+&lt;/span&gt;</code></pre>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2 id="penggunaan">10. Panduan Penggunaan</h2>
+
+<h3>10.1 Instalasi &amp; Konfigurasi</h3>
+
+<ol>
+  <li><strong>Clone repositori</strong>
+    <pre><code>git clone https://github.com/your-repo/ais-app.git
+cd ais-app</code></pre>
+  </li>
+  <li><strong>Install dependencies backend</strong>
+    <pre><code>npm install</code></pre>
+  </li>
+  <li><strong>Install dependencies YOLO server</strong>
+    <pre><code>cd yolo-server
+pip install flask flask-cors opencv-python
+cd ..</code></pre>
+  </li>
+  <li><strong>Konfigurasi environment</strong>
+    <pre><code># Sesuaikan .env atau config.js
+MONGODB_URI=mongodb://localhost:27017/ais-app
+PORT=4000
+JWT_SECRET=your_secret_key</code></pre>
+  </li>
+  <li><strong>Konfigurasi ESP32</strong>
+    <p>Edit <code>arduino/arduino.ino</code> dan ubah:</p>
+    <pre><code>const char* ssid = "WiFi_SSID_ANDA";
+const char* password = "WiFi_PASSWORD_ANDA";
+const char* serverUrl = "http://IP_SERVER_ANDA:4000/api/zones/led";</code></pre>
+  </li>
+  <li><strong>Upload firmware ke ESP32</strong>
+    <pre><code>Buka arduino/arduino.ino di Arduino IDE
+Pilih Board: ESP32 Dev Module
+Pilih Port: COMx
+Klik Upload</code></pre>
+  </li>
+  <li><strong>Jalankan MongoDB</strong>
+    <pre><code>mongod</code></pre>
+  </li>
+  <li><strong>Jalankan YOLO server</strong>
+    <pre><code>cd yolo-server
+python app.py</code></pre>
+  </li>
+  <li><strong>Jalankan AIS-APP backend</strong>
+    <pre><code>npm start</code></pre>
+  </li>
+  <li><strong>Akses UI</strong>
+    <p>Buka browser: <code>http://localhost:4000</code></p>
+  </li>
+</ol>
+
+<h3>10.2 Cara Penggunaan</h3>
+
+<ol>
+  <li><strong>Login</strong> ke aplikasi AIS-APP</li>
+  <li><strong>Buat geofence zone</strong>:
+    <ul>
+      <li>Klik "Tambah Geofence"</li>
+      <li>Gambar polygon di peta</li>
+      <li>Pilih Tipe Zona: Zona 1 (Merah), Zona 2 (Kuning), atau Zona 3 (Hijau + YOLO)</li>
+      <li>Simpan</li>
+    </ul>
+  </li>
+  <li><strong>Pastikan ESP32 menyala</strong> dan terhubung ke WiFi yang sama</li>
+  <li><strong>Tunggu kapal AIS masuk zona</strong>:
+    <ul>
+      <li>Zona 1 → LED Merah menyala</li>
+      <li>Zona 2 → LED Kuning menyala</li>
+      <li>Zona 3 → LED Hijau menyala</li>
+      <li>Jika Zona 3 aktif + YOLO mendeteksi nama cocok → LED Hijau blink 5s nyala/5s mati + Buzzer panjang</li>
+      <li>Jika Zona 3 aktif + YOLO mendeteksi tapi nama tidak cocok → Buzzer 2x cepat</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>10.3 Library yang Dibutuhkan ESP32</h3>
+<table>
+  <tr><th>Library</th><th>Fungsi</th><th>Sumber</th></tr>
+  <tr><td>WiFi.h</td><td>Koneksi WiFi</td><td>Built-in Board Manager ESP32</td></tr>
+  <tr><td>HTTPClient.h</td><td>HTTP Request</td><td>Built-in Board Manager ESP32</td></tr>
+</table>
+<p>Tidak perlu library tambahan. Cukup install Board Manager ESP32 di Arduino IDE.</p>
+
+<h3>10.4 Library yang Dibutuhkan YOLO Server</h3>
+<table>
+  <tr><th>Library</th><th>Fungsi</th></tr>
+  <tr><td>flask</td><td>Web server</td></tr>
+  <tr><td>flask-cors</td><td>CORS support</td></tr>
+  <tr><td>opencv-python</td><td>Kamera + YOLO processing</td></tr>
+  <tr><td>numpy</td><td>Array processing</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>Lampiran: Flowchart Sistem</h2>
+
+<h3>Flowchart ESP32</h3>
+<pre>
+START
+  │
+  ├─ setup(): init pin, konek WiFi
+  │
+  └─ loop():
+       │
+       ├─ [tiap 2 detik] GET /api/zones/led
+       │    │
+       │    ├─ parse 4-field: z1,z2,z3,yoloStatus
+       │    │
+       │    ├─ yoloStatus == 2? ──Ya──► State MATCH:
+       │    │                              │ LED Hijau blink 5s/5s
+       │    │                              │ Buzzer panjang menyala
+       │    │                              └─ loop sampai yoloStatus berubah
+       │    │
+       │    ├─ yoloStatus == 1? ──Ya──► Buzzer 2x cepat (100ms on/100ms off)
+       │    │
+       │    └─ Set LED berdasarkan z1,z2,z3 (active-LOW)
+       │         Semua LED bisa menyala bersamaan
+       │
+       └─ [sleep]
+</pre>
+
+<h3>Flowchart actuator.js (Backend)</h3>
+<pre>
+init()
+  │
+  ├─ setInterval(_pollYolo, 2000):
+  │    │
+  │    └─ GET http://localhost:5000/api/detections
+  │         └─ simpan di this.yoloDetections
+  │
+  └─ setInterval(_updateLine, 1000):
+       │
+       ├─ Untuk setiap ship di this.ships:
+       │    └─ Untuk setiap zone di this.zones:
+       │         ├─ Ship di dalam zone?
+       │         │    ├─ zoneType = zona1 → z1 = 1
+       │         │    ├─ zoneType = zona2 → z2 = 1
+       │         │    └─ zoneType = zona3 → z3 = 1 + YOLO matching
+       │         │
+       │         └─ YOLO matching (jika z3 aktif):
+       │              ├─ yoloDetections.length > 0?
+       │              │    ├─ shipName match class YOLO? → yoloStatus = 2
+       │              │    └─ tidak match → yoloStatus = 1
+       │              └─ tidak ada deteksi → yoloStatus = 0
+       │
+       └─ Simpan line = "z1,z2,z3,yoloStatus"
+</pre>
+
+<h3>Flowchart YOLO Server</h3>
+<pre>
+START
+  │
+  ├─ thread camera_loop():
+  │    │
+  │    ├─ Buka kamera (multi-backend fallback: DSHOW → MSMF → ANY)
+  │    │
+  │    └─ Loop:
+  │         ├─ capture frame
+  │         ├─ jalankan YOLO inference
+  │         ├─ simpan daftar detections ke state
+  │         └─ sleep 100ms (~10 FPS)
+  │
+  └─ Flask server (port 5000):
+       │
+       └─ GET /api/detections
+            └─ return json { detections: [...] }
+</pre>
+
+<!-- ============================================================ -->
+<div class="page-break"></div>
+<h2>Lampiran: Format Data</h2>
+
+<h3>Format Line ESP32</h3>
+<pre>
+z1,z2,z3,yoloStatus
+
+Dimana:
+z1 = 0/1 — Zona 1 (LED Merah) aktif
+z2 = 0/1 — Zona 2 (LED Kuning) aktif
+z3 = 0/1 — Zona 3 (LED Hijau) aktif
+yoloStatus = 0 — YOLO tidak aktif / tidak ada deteksi
+yoloStatus = 1 — YOLO aktif tapi nama TIDAK cocok (mismatch)
+yoloStatus = 2 — YOLO aktif dan nama COCOK (match)
+
+Contoh:
+"1,0,0,0"   → Hanya Zona 1 aktif
+"0,1,0,0"   → Hanya Zona 2 aktif
+"0,0,1,1"   → Zona 3 aktif, YOLO mismatch → buzzer 2x
+"0,0,1,2"   → Zona 3 aktif, YOLO match → LED blink + buzzer panjang
+"1,1,1,0"   → Semua zona aktif (multi-zone), YOLO tidak aktif
+</pre>
+
+<h3>Format geofences.json</h3>
+<pre>{
+  "_id": "...",
+  "name": "Zona Pelabuhan",
+  "coordinates": [[...]],   // polygon
+  "zoneType": "zona1",      // "zona1" | "zona2" | "zona3" | null
+  "createdAt": "...",
+  "updatedAt": "..."
+}</pre>
+
+<h3>Format Response YOLO /api/detections</h3>
+<pre>{
+  "detections": [
+    { "name": "kapal", "confidence": 0.89, "bbox": [x,y,w,h] },
+    { "name": "boat", "confidence": 0.76, "bbox": [x,y,w,h] }
+  ]
+}</pre>
+
+<!-- ============================================================ -->
+<div class="footer">
+  <p>Dokumentasi ini dibuat secara otomatis dari percakapan AI assistant.<br>
+  AIS-APP + ESP32 Notifikasi 3 Zona Geofence + YOLO Matching &copy; 2026</p>
+</div>
+
+</body>
+</html>

@@ -1,25 +1,35 @@
 #include <WiFi.h>
-#include <PubSubClient.h>
+#include <HTTPClient.h>
 
 // ── WiFi ──────────────────────────────────────────────
-const char* WIFI_SSID     = "Milik Alfarezzz";
-const char* WIFI_PASSWORD = "alfarezzganteng";
+const char* WIFI_SSID     = "MOU Clean";
+const char* WIFI_PASSWORD = "rafif1212";
 
-// ── MQTT ──────────────────────────────────────────────
-const char* MQTT_SERVER   = "192.168.1.122";
-const int   MQTT_PORT     = 1883;
-const char* MQTT_TOPIC    = "ais/actuator/line";
+// ── AIS-APP Server ────────────────────────────────────
+const char* SERVER_URL    = "http://192.168.1.21:4000";
+const char* ENDPOINT      = "/api/zones/led";
 
 // ── PIN GPIO ──────────────────────────────────────────
-const int PIN_MERAH  = 25;
-const int PIN_KUNING = 32;
+const int PIN_MERAH  = 32;
+const int PIN_KUNING = 25;
 const int PIN_HIJAU  = 33;
 const int PIN_BUZZER = 27;
 
-WiFiClient wifiClient;
-PubSubClient mqtt(wifiClient);
+// ── Timing ────────────────────────────────────────────
+const unsigned long POLL_MS      = 2000;
+const unsigned long BLINK_CYCLE  = 10000;
+const unsigned long BLINK_ON_MS  = 5000;
 
-unsigned long lastReconnect = 0;
+// ── State ─────────────────────────────────────────────
+String previousLine = "";
+unsigned long lastPoll = 0;
+
+int yoloStatus = 0;
+int lastYoloStatus = -1;
+unsigned long mismatchStart = 0;
+bool lastBlinkPhase = false;
+
+int lastZ1 = 0, lastZ2 = 0, lastZ3 = 0;
 
 // ── WiFi ──────────────────────────────────────────────
 void connectWiFi() {
@@ -43,96 +53,127 @@ void connectWiFi() {
   }
 }
 
-// ── MQTT ──────────────────────────────────────────────
-void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  char buf[32];
-  unsigned int len = length < sizeof(buf) - 1 ? length : sizeof(buf) - 1;
-  memcpy(buf, payload, len);
-  buf[len] = '\0';
-
-  String msg = String(buf);
-  msg.trim();
-
-  Serial.print("[MQTT] ");
-  Serial.print(topic);
-  Serial.print(": ");
-  Serial.println(msg);
-
-  // Format: "outer,zone2,sync"
-  int outer = msg.substring(0, 1).toInt();
-  int zone2 = msg.substring(2, 3).toInt();
-  int sync  = msg.substring(4, 5).toInt();
-
-  if (sync == 1) {
-    setState(3);
-  } else if (zone2 == 1) {
-    setState(2);
-  } else if (outer == 1) {
-    setState(1);
-  } else {
-    setState(0);
-  }
+// ── LED Control ───────────────────────────────────────
+void setLEDs(int merah, int kuning, int hijau) {
+  digitalWrite(PIN_MERAH,  merah ? LOW : HIGH);
+  digitalWrite(PIN_KUNING, kuning ? LOW : HIGH);
+  digitalWrite(PIN_HIJAU,  hijau ? LOW : HIGH);
 }
-
-void connectMQTT() {
-  while (!mqtt.connected()) {
-    Serial.print("[MQTT] Menghubungkan... ");
-    String clientId = "ESP32_AC";
-    if (mqtt.connect(clientId.c_str())) {
-      Serial.println("OK");
-      mqtt.subscribe(MQTT_TOPIC);
-      Serial.print("[MQTT] Subscribe: ");
-      Serial.println(MQTT_TOPIC);
-    } else {
-      Serial.print("Gagal (rc=");
-      Serial.print(mqtt.state());
-      Serial.println("). Coba lagi 3s...");
-      delay(3000);
-    }
-  }
-}
-
-// ── STATE ─────────────────────────────────────────────
-// state: 0=idle, 1=green, 2=yellow, 3=red
-int currentState = -1;
 
 void allOff() {
-  digitalWrite(PIN_MERAH,  LOW);
-  digitalWrite(PIN_KUNING, LOW);
-  digitalWrite(PIN_HIJAU,  LOW);
+  digitalWrite(PIN_MERAH,  HIGH);
+  digitalWrite(PIN_KUNING, HIGH);
+  digitalWrite(PIN_HIJAU,  HIGH);
   digitalWrite(PIN_BUZZER, LOW);
 }
 
-void setState(int state) {
-  if (state == currentState) return;
-  currentState = state;
-
-  allOff();
-
-  switch (state) {
-    case 0:
-      Serial.println("[STATE] idle — semua off");
-      break;
-    case 1:
-      Serial.println("[STATE] green — kapal di zona luar");
-      digitalWrite(PIN_HIJAU, HIGH);
-      digitalWrite(PIN_BUZZER, HIGH);
-      delay(200);
-      digitalWrite(PIN_BUZZER, LOW);
-      break;
-    case 2:
-      Serial.println("[STATE] yellow — kapal di zona sandar");
-      digitalWrite(PIN_KUNING, HIGH);
-      digitalWrite(PIN_BUZZER, HIGH);
-      delay(500);
-      digitalWrite(PIN_BUZZER, LOW);
-      break;
-    case 3:
-      Serial.println("[STATE] red — kapal sandar + kamera konfirmasi");
-      digitalWrite(PIN_MERAH, HIGH);
-      digitalWrite(PIN_BUZZER, HIGH);
-      break;
+void buzzerDouble() {
+  for (int i = 0; i < 2; i++) {
+    digitalWrite(PIN_BUZZER, HIGH);
+    delay(120);
+    digitalWrite(PIN_BUZZER, LOW);
+    delay(120);
   }
+}
+
+void buzzerLong() {
+  digitalWrite(PIN_BUZZER, HIGH);
+  delay(1500);
+  digitalWrite(PIN_BUZZER, LOW);
+}
+
+// ── Parse & Update ────────────────────────────────────
+void updateLEDs(String line) {
+  int i1 = line.indexOf(',');
+  int i2 = line.indexOf(',', i1 + 1);
+  int i3 = line.lastIndexOf(',');
+
+  int z1 = 0, z2 = 0, z3 = 0, yolo = 0;
+
+  if (i1 > 0) {
+    z1 = line.substring(0, i1).toInt();
+  }
+  if (i1 > 0 && i2 > i1) {
+    z2 = line.substring(i1 + 1, i2).toInt();
+  }
+  if (i2 > 0 && i3 > i2) {
+    z3 = line.substring(i2 + 1, i3).toInt();
+    yolo = line.substring(i3 + 1).toInt();
+  }
+
+  boolean lineChanged = (line != previousLine);
+  previousLine = line;
+
+  lastZ1 = z1;
+  lastZ2 = z2;
+  lastZ3 = z3;
+
+  yoloStatus = yolo;
+
+  // Serial output
+  Serial.print("[LED] line=");
+  Serial.print(line);
+  Serial.print(" → Z1=");
+  Serial.print(z1);
+  Serial.print(" Z2=");
+  Serial.print(z2);
+  Serial.print(" Z3=");
+  Serial.print(z3);
+  Serial.print(" YOLO=");
+  Serial.println(yolo);
+
+  if (yolo == 2) {
+    if (lastYoloStatus != 2) {
+      buzzerLong();
+      mismatchStart = millis();
+      lastBlinkPhase = false;
+    }
+  } else {
+    setLEDs(z1, z2, z3);
+
+    if (yolo == 1 && lastYoloStatus != 1) {
+      buzzerDouble();
+    }
+  }
+
+  lastYoloStatus = yolo;
+}
+
+// ── HTTP Poll ─────────────────────────────────────────
+void pollLEDStatus() {
+  if (WiFi.status() != WL_CONNECTED) {
+    connectWiFi();
+    return;
+  }
+
+  HTTPClient http;
+  String url = String(SERVER_URL) + ENDPOINT;
+
+  http.begin(url);
+  http.setTimeout(3000);
+
+  int httpCode = http.GET();
+
+  if (httpCode == HTTP_CODE_OK) {
+    String payload = http.getString();
+
+    int lineStart = payload.indexOf("\"line\":\"");
+    if (lineStart > 0) {
+      lineStart += 8;
+      int lineEnd = payload.indexOf("\"", lineStart);
+      if (lineEnd > lineStart) {
+        String line = payload.substring(lineStart, lineEnd);
+        updateLEDs(line);
+      }
+    } else {
+      Serial.println("[HTTP] Field 'line' tidak ditemukan di response");
+    }
+  } else {
+    Serial.print("[HTTP] Gagal, kode: ");
+    Serial.println(httpCode);
+  }
+
+  http.end();
 }
 
 // ── SETUP ─────────────────────────────────────────────
@@ -145,24 +186,41 @@ void setup() {
   pinMode(PIN_HIJAU,  OUTPUT);
   pinMode(PIN_BUZZER, OUTPUT);
 
-  digitalWrite(PIN_MERAH,  LOW);
-  digitalWrite(PIN_KUNING, LOW);
-  digitalWrite(PIN_HIJAU,  LOW);
-  digitalWrite(PIN_BUZZER, LOW);
+  allOff();
 
-  Serial.println("\n=== AISNESIA — ESP32 Actuator ===");
+  Serial.println("\n=== AISNESIA — ESP32 Zone LED Controller ===");
+  Serial.println("[SYS] Mode: HTTP Client (WiFi)");
 
   connectWiFi();
-  mqtt.setServer(MQTT_SERVER, MQTT_PORT);
-  mqtt.setCallback(mqttCallback);
 
-  Serial.println("[SYS] Siap menerima MQTT...");
+  Serial.print("[SYS] Server: ");
+  Serial.print(SERVER_URL);
+  Serial.println(ENDPOINT);
+  Serial.println("[SYS] Siap polling...");
 }
 
 // ── LOOP ──────────────────────────────────────────────
 void loop() {
-  if (!mqtt.connected()) {
-    connectMQTT();
+  unsigned long now = millis();
+
+  if (now - lastPoll >= POLL_MS) {
+    lastPoll = now;
+    pollLEDStatus();
   }
-  mqtt.loop();
+
+  if (yoloStatus == 2) {
+    unsigned long elapsed = now - mismatchStart;
+    bool onPhase = (elapsed % BLINK_CYCLE) < BLINK_ON_MS;
+
+    if (onPhase != lastBlinkPhase) {
+      lastBlinkPhase = onPhase;
+      if (onPhase) {
+        setLEDs(1, 1, 1);
+      } else {
+        setLEDs(0, 0, 0);
+      }
+      Serial.print("[BLINK] ");
+      Serial.println(onPhase ? "ON" : "OFF");
+    }
+  }
 }

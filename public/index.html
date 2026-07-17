@@ -3455,6 +3455,18 @@
           </div>
 
           <div class="form-section">
+            <div class="form-section-title">Tipe Zona & Notifikasi</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Tipe Zona (LED)</label>
+                <select class="form-input" id="zf-zoneType">
+                  <option value="">— Tidak ada LED —</option>
+                  <option value="zona1">Zona 1 — LED Merah (GPIO32)</option>
+                  <option value="zona2">Zona 2 — LED Kuning (GPIO25)</option>
+                  <option value="zona3">Zona 3 — LED Hijau (GPIO33) + YOLO Match</option>
+                </select>
+              </div>
+            </div>
             <div class="form-section-title">Status & Notifikasi</div>
             <div class="form-toggle-row">
               <div class="form-toggle-label"><b>Aktifkan Zona</b><span>Deteksi kapal yang masuk/keluar</span></div>
@@ -4506,7 +4518,8 @@
         card.className = 'zone-card' + (zoneEditId === z.id ? ' active-edit' : '');
         card.style.borderLeftColor = z.color || '#ff1744';
         const alerts = []; if (z.alertOnEnter) alerts.push('Masuk'); if (z.alertOnExit) alerts.push('Keluar');
-        card.innerHTML = `<div class="zone-card-top"><div class="zone-color-dot" style="background:${z.color || '#ff1744'}"></div><div class="zone-card-name">${esc(z.name)}</div><div class="zone-card-actions"><button class="src-btn ${z.enabled ? 'toggle-on' : 'toggle-off'}" title="Toggle" onclick="event.stopPropagation();toggleZone('${z.id}')"><i class="fa-solid fa-power-off"></i></button></div></div><div class="zone-info-row"><span class="zone-stat"><i class="fa-solid fa-ship" style="font-size:9px"></i><span class="zone-ship-count">${z.shipCount || 0}</span> kapal</span><span class="zone-stat"><i class="fa-solid fa-map-pin" style="font-size:9px;color:var(--text3)"></i><span style="color:var(--text2)">${z.polygon?.length || 0} titik</span></span></div>${!z.enabled ? '<div class="zone-disabled-badge">Nonaktif</div>' : ''}${alerts.length ? `<div class="zone-alert-badge"><i class="fa-solid fa-bell"></i> Alert: ${alerts.join(', ')}</div>` : ''}`;
+        const zoneLabel = z.zoneType === 'zona1' ? '🔴 Z1' : z.zoneType === 'zona2' ? '🟡 Z2' : z.zoneType === 'zona3' ? '🟢 Z3' : '';
+card.innerHTML = `<div class="zone-card-top"><div class="zone-color-dot" style="background:${z.color || '#ff1744'}"></div><div class="zone-card-name">${esc(z.name)}</div><div class="zone-card-actions"><button class="src-btn ${z.enabled ? 'toggle-on' : 'toggle-off'}" title="Toggle" onclick="event.stopPropagation();toggleZone('${z.id}')"><i class="fa-solid fa-power-off"></i></button></div></div><div class="zone-info-row"><span class="zone-stat"><i class="fa-solid fa-ship" style="font-size:9px"></i><span class="zone-ship-count">${z.shipCount || 0}</span> kapal</span><span class="zone-stat"><i class="fa-solid fa-map-pin" style="font-size:9px;color:var(--text3)"></i><span style="color:var(--text2)">${z.polygon?.length || 0} titik</span></span>${zoneLabel ? `<span class="zone-stat" style="font-size:10px;font-weight:600">${zoneLabel}</span>` : ''}</div>${!z.enabled ? '<div class="zone-disabled-badge">Nonaktif</div>' : ''}${alerts.length ? `<div class="zone-alert-badge"><i class="fa-solid fa-bell"></i> Alert: ${alerts.join(', ')}</div>` : ''}`;
       });
     }
 
@@ -4515,7 +4528,7 @@
       document.getElementById('zform-title-txt').textContent = 'Buat Zona Baru';
       document.getElementById('zform-title').querySelector('i').className = 'fa-solid fa-plus-circle';
       document.getElementById('zf-name').value = ''; document.getElementById('zf-desc').value = '';
-      document.getElementById('zf-enabled').checked = true; document.getElementById('zf-enter').checked = true;
+      document.getElementById('zf-zoneType').value = ''; document.getElementById('zf-enabled').checked = true; document.getElementById('zf-enter').checked = true;
       document.getElementById('zf-exit').checked = false; document.getElementById('zf-email').value = '';
       document.getElementById('geo-email-box').style.display = 'block';
       document.getElementById('zone-del-btn').style.display = 'none'; document.getElementById('zdel-confirm').classList.remove('show');
@@ -4531,7 +4544,7 @@
       document.getElementById('zform-title-txt').textContent = 'Edit Zona';
       document.getElementById('zform-title').querySelector('i').className = 'fa-solid fa-pencil';
       document.getElementById('zf-name').value = z.name; document.getElementById('zf-desc').value = z.description || '';
-      document.getElementById('zf-enabled').checked = z.enabled; document.getElementById('zf-enter').checked = z.alertOnEnter;
+      document.getElementById('zf-zoneType').value = z.zoneType || ''; document.getElementById('zf-enabled').checked = z.enabled; document.getElementById('zf-enter').checked = z.alertOnEnter;
       document.getElementById('zf-exit').checked = z.alertOnExit; document.getElementById('zf-email').value = z.alertEmail || '';
       showGeoEmailBox();
       document.getElementById('zone-del-btn').style.display = ''; document.getElementById('zdel-confirm').classList.remove('show');
@@ -4561,7 +4574,7 @@
       const btn = document.getElementById('zone-save-btn'); btn.disabled = true; btn.textContent = 'Menyimpan…';
       try {
         const url = zoneEditId ? `/api/zones/${zoneEditId}` : '/api/zones', method = zoneEditId ? 'PUT' : 'POST';
-        const res = await fetch(url, { credentials: 'include', method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description: document.getElementById('zf-desc').value.trim(), polygon: drawnPolygon, color: selectedColor, enabled: document.getElementById('zf-enabled').checked, alertOnEnter: document.getElementById('zf-enter').checked, alertOnExit: document.getElementById('zf-exit').checked, alertEmail: document.getElementById('zf-email').value.trim() }) });
+        const res = await fetch(url, { credentials: 'include', method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description: document.getElementById('zf-desc').value.trim(), polygon: drawnPolygon, color: selectedColor, zoneType: document.getElementById('zf-zoneType').value || null, enabled: document.getElementById('zf-enabled').checked, alertOnEnter: document.getElementById('zf-enter').checked, alertOnExit: document.getElementById('zf-exit').checked, alertEmail: document.getElementById('zf-email').value.trim() }) });
         const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Gagal');
         toast(zoneEditId ? `✓ Zona "${name}" diperbarui` : `✓ Zona "${name}" dibuat`, 'ok');
         showZoneForm();
