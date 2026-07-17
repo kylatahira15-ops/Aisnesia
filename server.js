@@ -323,6 +323,18 @@ srcMgr.on('decoded', ({ sourceId, sourceName, decoded }) => {
   if (['classA', 'classB', 'classBext', 'baseStation', 'sar', 'longRange'].includes(decoded.type)) geoMgr.checkShip(ship);
   queueShipUpdate(ship);
 });
+// srcMgr.on('decoded', ({ sourceId, sourceName, decoded }) => {
+//   stats.rxTotal++;
+//   if (!decoded) return;
+//   stats.rxDecoded++;
+//   const ship = updateShip(decoded, sourceId, sourceName);
+//   if (!ship) return;
+
+//   console.log('[DBG] msgType=', decoded.msgType, 'type=', decoded.type, 'mmsi=', ship.mmsi, ship.lat, ship.lon);  // ← ini
+
+//   if ([1, 2, 3, 18].includes(decoded.msgType)) geoMgr.checkShip(ship);
+//   queueShipUpdate(ship);
+// });
 srcMgr.on('sources-updated', sources => broadcast({ type: 'sources', sources }));
 
 // ── GEOFENCE EVENTS ───────────────────────────────
@@ -476,8 +488,10 @@ app.post('/api/email/test', canManage, async (req, res) => {
   res.json({ ok, message: ok ? 'Email terkirim' : 'Gagal mengirim email' });
 });
 
-app.get('/api/actuator', (req, res) => res.json(actuator.getStatus()));
-app.get('/api/actuator/line', (req, res) => res.type('text/plain').send(actuator.getLine()));
+app.get('/api/actuator', (req, res) => res.json(actuator.status));
+app.get('/api/actuator/line', (req, res) =>
+  res.type('text/plain').send(actuator.status.line || '0,0,0,0')
+);
 
 // ── HTTP + WS ─────────────────────────────────────
 const httpServer = http.createServer(app);
